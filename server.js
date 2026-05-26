@@ -445,6 +445,34 @@ app.post('/api/approve-payment/:id', async (req, res) => {
 }
 
 
+
+    res.json({
+
+      success: true,
+
+      message: 'Payment Approved & QR Sent'
+
+    });
+
+  } catch (error) {
+
+    console.log(error.message);
+
+    res.status(500).json({
+
+      success: false,
+
+      message: 'Approval Failed'
+
+    });
+
+  }
+
+});
+
+
+
+
 // =====================================
 // GET ALL REGISTRATIONS
 // =====================================

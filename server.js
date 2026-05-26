@@ -418,31 +418,86 @@ app.post('/api/approve-payment/:id', async (req, res) => {
 
     // SEND EMAIL
 
-    try {
+   await transporter.sendMail({
 
-  await transporter.sendMail({
+      from: process.env.EMAIL_USER,
 
-    from: process.env.EMAIL_USER,
+      to: attendee.email,
 
-    to: attendee.email,
+      subject: 'Your Musical Jam Event Pass',
 
-    subject: 'Your Musical Jam Event Pass',
+      html: `
 
-    html: `
+        <div
+          style="
+            font-family: Arial;
+            text-align: center;
+            background: #111;
+            padding: 40px;
+            color: white;
+          "
+        >
 
-      <h1>EMAIL WORKING</h1>
+          <h1 style="color:#FFD700;">
+            Musical Jam
+          </h1>
 
-    `
+          <p style="font-size:18px;">
+            Payment Approved 🎵
+          </p>
 
-  });
+          <p>
+            Ticket Type:
+            ${attendee.ticket_type}
+          </p>
 
-  console.log('EMAIL SENT SUCCESSFULLY');
+          <p>
+            Allowed Entries:
+            ${attendee.allowed_entries}
+          </p>
 
-} catch (mailError) {
+          <div
+            style="
+              background:white;
+              padding:20px;
+              border-radius:20px;
+              display:inline-block;
+              margin-top:20px;
+            "
+          >
 
-  console.log(mailError);
+            <img
+              src="${qr_code}"
+              width="250"
+            />
 
-}
+          </div>
+
+          <h3 style="margin-top:30px;">
+            See you at the event ✨
+          </h3>
+
+        </div>
+
+      `,
+
+
+
+      attachments: [
+
+        {
+
+          filename: 'musical-jam-qr.png',
+
+          content: qr_code.split('base64,')[1],
+
+          encoding: 'base64'
+
+        }
+
+      ]
+
+    });
 
 
 
@@ -469,7 +524,6 @@ app.post('/api/approve-payment/:id', async (req, res) => {
   }
 
 });
-
 
 
 

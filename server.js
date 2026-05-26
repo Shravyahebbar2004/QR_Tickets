@@ -809,8 +809,6 @@ app.post('/api/verify-ticket', async (req, res) => {
 
     const authHeader = req.headers.authorization;
 
-
-
     if (!authHeader) {
 
       return res.status(401).json({
@@ -823,15 +821,11 @@ app.post('/api/verify-ticket', async (req, res) => {
 
     }
 
-
-
     const token = authHeader.split(' ')[1];
-
-
 
     // VERIFY JWT
 
-    jwt.verify(
+    const decoded = jwt.verify(
 
       token,
 
@@ -839,13 +833,9 @@ app.post('/api/verify-ticket', async (req, res) => {
 
     );
 
-
-
     // QR TOKEN
 
     const qr_token = req.body.qr_token;
-
-
 
     // FIND USER
 
@@ -861,7 +851,7 @@ app.post('/api/verify-ticket', async (req, res) => {
 
     );
 
-
+    // INVALID QR
 
     if (user.rows.length === 0) {
 
@@ -875,11 +865,25 @@ app.post('/api/verify-ticket', async (req, res) => {
 
     }
 
-
-
     const attendee = user.rows[0];
 
+    // PAYMENT CHECK
 
+    if (
+
+      attendee.payment_status !== 'approved'
+
+    ) {
+
+      return res.json({
+
+        success: false,
+
+        message: 'Payment Not Approved'
+
+      });
+
+    }
 
     // ENTRY LIMIT CHECK
 
@@ -901,8 +905,6 @@ app.post('/api/verify-ticket', async (req, res) => {
 
     }
 
-
-
     // UPDATE ENTRY COUNT
 
     await pool.query(
@@ -916,43 +918,32 @@ app.post('/api/verify-ticket', async (req, res) => {
       [qr_token]
 
     );
+
     // SAVE ENTRY LOG
 
-const decoded = jwt.verify(
+    await pool.query(
 
-  token,
+      `
+      INSERT INTO entry_logs
+      (
+        registration_id,
+        scanner_id
+      )
 
-  process.env.JWT_SECRET
+      VALUES ($1, $2)
+      `,
 
-);
+      [
 
+        attendee.registration_id,
 
+        decoded.scanner_id
 
-await pool.query(
+      ]
 
-  `
-  INSERT INTO entry_logs
-  (
-    registration_id,
-    scanner_id
-  )
+    );
 
-  VALUES ($1, $2)
-  `,
-
-  [
-
-    attendee.registration_id,
-
-    decoded.scanner_id
-
-  ]
-
-);
-
-
-
-
+    // SUCCESS
 
     res.json({
 
@@ -979,7 +970,6 @@ await pool.query(
   }
 
 });
-
 
 
 

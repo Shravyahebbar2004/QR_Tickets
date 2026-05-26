@@ -418,114 +418,31 @@ app.post('/api/approve-payment/:id', async (req, res) => {
 
     // SEND EMAIL
 
-    await transporter.sendMail({
+    try {
 
-      from: process.env.EMAIL_USER,
+  await transporter.sendMail({
 
-      to: attendee.email,
+    from: process.env.EMAIL_USER,
 
-      subject: 'Your Musical Jam Event Pass',
+    to: attendee.email,
 
-      html: `
+    subject: 'Your Musical Jam Event Pass',
 
-        <div
-          style="
-            font-family: Arial;
-            text-align: center;
-            background: #111;
-            padding: 40px;
-            color: white;
-          "
-        >
+    html: `
 
-          <h1 style="color:#FFD700;">
-            Musical Jam
-          </h1>
+      <h1>EMAIL WORKING</h1>
 
-          <p style="font-size:18px;">
-            Payment Approved 🎵
-          </p>
+    `
 
-          <p>
-            Ticket Type:
-            ${attendee.ticket_type}
-          </p>
+  });
 
-          <p>
-            Allowed Entries:
-            ${attendee.allowed_entries}
-          </p>
+  console.log('EMAIL SENT SUCCESSFULLY');
 
-          <div
-            style="
-              background:white;
-              padding:20px;
-              border-radius:20px;
-              display:inline-block;
-              margin-top:20px;
-            "
-          >
+} catch (mailError) {
 
-            <img
-              src="${qr_code}"
-              width="250"
-            />
+  console.log(mailError);
 
-          </div>
-
-          <h3 style="margin-top:30px;">
-            See you at the event ✨
-          </h3>
-
-        </div>
-
-      `,
-
-
-
-      attachments: [
-
-        {
-
-          filename: 'musical-jam-qr.png',
-
-          content: qr_code.split('base64,')[1],
-
-          encoding: 'base64'
-
-        }
-
-      ]
-
-    });
-
-
-
-    res.json({
-
-      success: true,
-
-      message: 'Payment Approved & QR Sent'
-
-    });
-
-  } catch (error) {
-
-    console.log(error.message);
-
-    res.status(500).json({
-
-      success: false,
-
-      message: 'Approval Failed'
-
-    });
-
-  }
-
-});
-
-
+}
 
 
 // =====================================

@@ -119,6 +119,22 @@ app.post(
       const full_name = req.body.full_name;
 
       const email = req.body.email;
+      // EMAIL VALIDATION
+
+      const emailRegex =
+       
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({
+              success: false,
+              message: 'Invalid Email Address'
+             });
+
+      const cleanEmail =
+      
+      email.toLowerCase().trim();
+
+}
 
       const phone_number = req.body.phone_number;
 
@@ -200,7 +216,7 @@ app.post(
         WHERE LOWER(email) = LOWER($1)
         `,
 
-        [email]
+        [email.toLowerCase().trim()]
 
       );
 
@@ -234,7 +250,7 @@ app.post(
         INSERT INTO registrations
         (
           full_name,
-          email,
+          cleanEmail,
           phone_number,
           ticket_type,
           total_amount,

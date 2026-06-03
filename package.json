@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/Shravyahebbar2004/QR_Tickets#readme",
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",

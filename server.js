@@ -9,6 +9,7 @@ const multer = require('multer');
 const path = require('path');
 
 const app = express();
+const bcrypt = require('bcrypt');
 
 app.use(cors({
   origin: '*'
@@ -103,6 +104,109 @@ app.get('/', async (req, res) => {
 
 
 // =====================================
+// GET SINGLE EVENT
+// =====================================
+
+app.get('/api/event/:id', async (req, res) => {
+
+  try {
+
+    const id = req.params.id;
+
+    const event = await pool.query(
+
+      `
+      SELECT *
+      FROM events
+      WHERE event_id = $1
+      `,
+
+      [id]
+
+    );
+
+    if (event.rows.length === 0) {
+
+      return res.status(404).json({
+
+        success: false,
+
+        message: 'Event not found'
+
+      });
+
+    }
+
+    res.json({
+
+      success: true,
+
+      event: event.rows[0]
+
+    });
+
+  } catch (error) {
+
+    console.log(error.message);
+
+    res.status(500).json({
+
+      success: false,
+
+      message: 'Failed to fetch event'
+
+    });
+
+  }
+
+});
+
+// =====================================
+// GET ALL EVENTS
+// =====================================
+
+app.get('/api/events', async (req, res) => {
+
+  try {
+
+    const events = await pool.query(
+
+      `
+      SELECT *
+      FROM events
+      ORDER BY created_at DESC
+      `
+
+    );
+
+    res.json({
+
+      success: true,
+
+      events: events.rows
+
+    });
+
+  } catch (error) {
+
+    console.log(error.message);
+
+    res.status(500).json({
+
+      success: false,
+
+      message: 'Failed to fetch events'
+
+    });
+
+  }
+
+});
+
+
+
+
+// =====================================
 // REGISTER USER
 // =====================================
 
@@ -118,28 +222,37 @@ app.post(
 
       const full_name = req.body.full_name;
 
-      const email = req.body.email;
-      // EMAIL VALIDATION
+const email = req.body.email;
 
-      const emailRegex =
-       
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            return res.status(400).json({
-              success: false,
-              message: 'Invalid Email Address'
-             });
+// EMAIL VALIDATION
 
-      const cleanEmail =
-      
-      email.toLowerCase().trim();
+const emailRegex =
+/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+if (!emailRegex.test(email)) {
+
+  return res.status(400).json({
+
+    success: false,
+
+    message: 'Invalid Email Address'
+
+  });
 
 }
 
-      const phone_number = req.body.phone_number;
+const cleanEmail =
 
-      const ticket_type = req.body.ticket_type;
+  email.toLowerCase().trim();
 
+const phone_number =
+  req.body.phone_number;
+
+const ticket_type =
+  req.body.ticket_type;
+
+const event_id =
+  req.body.event_id;
 
 
       // =====================================
@@ -243,65 +356,70 @@ app.post(
 
 
       // SAVE USER
+// SAVE USER
 
-      const newRegistration = await pool.query(
+const newRegistration = await pool.query(
 
-        `
-        INSERT INTO registrations
-        (
-          full_name,
-          cleanEmail,
-          phone_number,
-          ticket_type,
-          total_amount,
-          allowed_entries,
-          used_entries,
-          qr_token,
-          payment_proof,
-          payment_status
-        )
+  `
+  INSERT INTO registrations
+  (
+    full_name,
+    email,
+    phone_number,
+    ticket_type,
+    total_amount,
+    allowed_entries,
+    used_entries,
+    qr_token,
+    payment_proof,
+    payment_status,
+    event_id
+  )
 
-        VALUES (
-          $1,
-          $2,
-          $3,
-          $4,
-          $5,
-          $6,
-          $7,
-          $8,
-          $9,
-          $10
-        )
+  VALUES (
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6,
+    $7,
+    $8,
+    $9,
+    $10,
+    $11
+  )
 
-        RETURNING *
-        `,
+  RETURNING *
+  `,
 
-        [
+  [
 
-          full_name,
+    full_name,
 
-          email,
+    cleanEmail,
 
-          phone_number,
+    phone_number,
 
-          ticket_type,
+    ticket_type,
 
-          total_amount,
+    total_amount,
 
-          allowed_entries,
+    allowed_entries,
 
-          0,
+    0,
 
-          qr_token,
+    qr_token,
 
-          payment_proof,
+    payment_proof,
 
-          'pending'
+    'pending',
 
-        ]
+    event_id
 
-      );
+  ]
+
+);
 
 
 
@@ -352,15 +470,28 @@ app.post('/api/approve-payment/:id', async (req, res) => {
 
     const user = await pool.query(
 
-      `
-      SELECT *
-      FROM registrations
-      WHERE registration_id = $1
-      `,
+  `
+  SELECT
 
-      [id]
+  r.*,
 
-    );
+  e.title,
+  e.venue,
+  e.event_date,
+  e.organizer_name
+
+  FROM registrations r
+
+  JOIN events e
+
+  ON r.event_id = e.event_id
+
+  WHERE r.registration_id = $1
+  `,
+
+  [id]
+
+);
 
 
 
@@ -440,7 +571,7 @@ app.post('/api/approve-payment/:id', async (req, res) => {
 
       to: attendee.email,
 
-      subject: 'Your Musical Jam Event Pass',
+      subject: `Your ${attendee.title} Event Pass`,
 
       html: `
 
@@ -455,11 +586,29 @@ app.post('/api/approve-payment/:id', async (req, res) => {
         >
 
           <h1 style="color:#FFD700;">
-            Musical Jam
+
+          ${attendee.title}
           </h1>
 
+          <p>
+  Venue:
+  ${attendee.venue}
+</p>
+
+<p>
+  Date:
+  ${new Date(
+    attendee.event_date
+  ).toLocaleDateString()}
+</p>
+
+<p>
+  Organizer:
+  ${attendee.organizer_name}
+</p>
+
           <p style="font-size:18px;">
-            Payment Approved 🎵
+            Payment Approved 
           </p>
 
           <p>
@@ -503,7 +652,7 @@ app.post('/api/approve-payment/:id', async (req, res) => {
 
         {
 
-          filename: 'musical-jam-qr.png',
+          filename: `${attendee.title}-qr.png`,
 
           content: qr_code.split('base64,')[1],
 
@@ -811,6 +960,106 @@ app.post('/api/scanner/login', async (req, res) => {
 
 });
 
+app.post(
+
+  '/api/create-event',
+
+  upload.single('banner'),
+
+  async (req, res) => {
+
+    try {
+
+      const {
+
+        title,
+        tagline,
+        description,
+        venue,
+        event_date,
+        category,
+        organizer_name
+
+      } = req.body;
+
+      // BANNER URL
+
+      const banner_url = req.file
+
+        ? req.file.path
+
+        : null;
+
+      // INSERT EVENT
+
+      const newEvent = await pool.query(
+
+        `
+        INSERT INTO events
+        (
+
+          title,
+          tagline,
+          description,
+          venue,
+          event_date, 
+          category,
+          organizer_name,
+          banner_url
+
+        )
+
+        VALUES
+        (
+          $1,$2,$3,$4,$5,$6,$7,$8
+        )
+
+        RETURNING *
+        `,
+
+        [
+
+          title,
+          tagline,
+          description,
+          venue,
+          event_date,
+          category,
+          organizer_name,
+          banner_url
+
+        ]
+
+      );
+
+      res.json({
+
+        success: true,
+
+        event:
+
+          newEvent.rows[0]
+
+      });
+
+    } catch (error) {
+
+      console.log(error.message);
+
+      res.status(500).json({
+
+        success: false,
+
+        message: 'Event Creation Failed'
+
+      });
+
+    }
+
+  }
+
+);
+
 
 // =====================================
 // SECURE VERIFY API
@@ -1013,12 +1262,20 @@ app.post('/api/my-ticket', async (req, res) => {
     const user = await pool.query(
 
       `
-      SELECT *
-      FROM registrations
+      SELECT
+      r.*,
+      e.title,
+      e.venue,
+      e.event_date,
+      e.organizer_name
+      FROM registrations r
+      JOIN events e
+      ON r.event_id = e.event_id
       WHERE
-        LOWER(email) = LOWER($1)
+      LOWER(r.email) = LOWER($1)
       AND
-        TRIM(phone_number) = $2
+
+      TRIM(r.phone_number) = $2
       `,
 
       [
@@ -1199,6 +1456,75 @@ app.get('/api/analytics', async (req, res) => {
 
 });
 
+app.get('/api/signup', (req, res) => {
+
+  res.json({
+
+    success: true,
+
+    message: 'Signup Route Working'
+
+  });
+
+});
+
+// =====================================
+// GET EVENT REGISTRATIONS
+// =====================================
+
+app.get(
+
+  '/api/admin/:id',
+
+  async (req, res) => {
+
+    try {
+
+      const event_id =
+        req.params.id;
+
+      const registrations =
+        await pool.query(
+
+          `
+          SELECT *
+          FROM registrations
+          WHERE event_id = $1
+          ORDER BY created_at DESC
+          `,
+
+          [event_id]
+
+        );
+
+      res.json({
+
+        success: true,
+
+        registrations:
+
+          registrations.rows
+
+      });
+
+    } catch (error) {
+
+      console.log(error.message);
+
+      res.status(500).json({
+
+        success: false,
+
+        message:
+          'Failed to fetch registrations'
+
+      });
+
+    }
+
+  }
+
+);
 
 
 

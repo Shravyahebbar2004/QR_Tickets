@@ -935,14 +935,16 @@ app.post('/api/scanner/login', async (req, res) => {
     );
 
 
+res.json({
 
-    res.json({
+  success: true,
 
-      success: true,
+  token,
 
-      token
+  event_id:
+    scanner.rows[0].event_id
 
-    });
+});
 
   } catch (error) {
 

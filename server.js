@@ -823,7 +823,9 @@ app.post('/api/admin/login', async (req, res) => {
 
       success: true,
 
-      token
+      token,
+      
+      event_id: admin.rows[0].event_id
 
     });
 

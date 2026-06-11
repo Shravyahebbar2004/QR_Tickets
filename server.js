@@ -514,8 +514,8 @@ app.post('/api/approve-payment/:id', async (req, res) => {
               <p style="font-size:18px;">Payment Approved</p>
               <p>Ticket Type: ${attendee.ticket_type}</p>
               <p>Allowed Entries: ${attendee.allowed_entries}</p>
-              <div style="background:white; padding:20px; border-radius:20px; display:inline-block; margin-top:20px;">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${attendee.qr_token}" width="250" alt="QR Code" />
+              <div style="background:white; padding:15px; border-radius:15px; display:inline-block; margin-top:20px; max-width: 100%; box-sizing: border-box;">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${attendee.qr_token}" style="width: 250px; max-width: 100%; height: auto;" alt="QR Code" />
               </div>
               <h3 style="margin-top:30px;">See you at the event ✨</h3>
             </div>

@@ -3,7 +3,8 @@ const cors = require('cors');
 const pool = require('./db');
 const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
-const transporter = require('./mailer');
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY || 're_123456789');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
@@ -500,8 +501,8 @@ app.post('/api/approve-payment/:id', async (req, res) => {
     // SEND EMAIL IN BACKGROUND
     (async () => {
       try {
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : '',
+        const { data, error } = await resend.emails.send({
+          from: 'EventFlow <onboarding@resend.dev>',
           to: attendee.email ? attendee.email.trim() : '',
           subject: `Your ${attendee.title} Event Pass`,
           html: `
@@ -520,6 +521,10 @@ app.post('/api/approve-payment/:id', async (req, res) => {
             </div>
           `
         });
+
+        if (error) {
+          throw new Error(error.message);
+        }
         console.log("BACKGROUND EMAIL SENT SUCCESSFULLY TO", attendee.email);
       } catch (err) {
         console.error('BACKGROUND EMAIL ERROR:', err);
@@ -859,6 +864,20 @@ app.post(
         ? req.file.path
 
         : null;
+
+      // CHECK DUPLICATE USERNAME
+      if (organizer_username) {
+        const existingAdmin = await pool.query(
+          `SELECT * FROM admins WHERE username = $1`,
+          [organizer_username]
+        );
+        if (existingAdmin.rows.length > 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'Username is already taken. Please choose a different admin username.'
+          });
+        }
+      }
 
       // INSERT EVENT
 

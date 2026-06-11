@@ -535,7 +535,7 @@ app.post('/api/approve-payment/:id', async (req, res) => {
 
     transporter.sendMail({
 
-      from: process.env.EMAIL_USER,
+      from: process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : '',
 
       to: attendee.email,
 

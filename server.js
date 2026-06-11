@@ -1361,6 +1361,8 @@ app.post('/api/my-ticket', async (req, res) => {
 
 
 
+    const event_id = req.body.event_id;
+
     const user = await pool.query(
 
       `
@@ -1376,15 +1378,18 @@ app.post('/api/my-ticket', async (req, res) => {
       WHERE
       LOWER(r.email) = LOWER($1)
       AND
-
       TRIM(r.phone_number) = $2
+      AND
+      r.event_id = $3
       `,
 
       [
 
         email,
 
-        cleanPhone
+        cleanPhone,
+
+        event_id
 
       ]
 

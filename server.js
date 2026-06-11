@@ -495,9 +495,45 @@ app.post('/api/approve-payment/:id', async (req, res) => {
 
 
 
-    // SEND EMAIL FIRST
+    // SAVE QR IMMEDIATELY FOR FAST RESPONSE
 
-    await transporter.sendMail({
+    await pool.query(
+
+      `
+
+      UPDATE registrations
+
+      SET
+
+        payment_status = 'approved',
+
+        qr_code = $1
+
+      WHERE registration_id = $2
+
+      `,
+
+      [
+
+        qr_code,
+
+        id
+
+      ]
+
+    );
+
+    res.json({
+
+      success: true,
+
+      message: 'Payment Approved & QR Sent'
+
+    });
+
+    // SEND EMAIL IN BACKGROUND (NO AWAIT)
+
+    transporter.sendMail({
 
       from: process.env.EMAIL_USER,
 
@@ -635,47 +671,11 @@ app.post('/api/approve-payment/:id', async (req, res) => {
 
       ]
 
+    }).catch(err => {
+      console.log('Background Email Error:', err.message);
     });
 
-
-
-    // SAVE QR ONLY IF EMAIL SUCCEEDS
-
-    await pool.query(
-
-      `
-
-      UPDATE registrations
-
-      SET
-
-        payment_status = 'approved',
-
-        qr_code = $1
-
-      WHERE registration_id = $2
-
-      `,
-
-      [
-
-        qr_code,
-
-        id
-
-      ]
-
-    );
-
-
-
-    res.json({
-
-      success: true,
-
-      message: 'Payment Approved & QR Sent'
-
-    });
+    // Response is already sent above
 
   } catch (error) {
 

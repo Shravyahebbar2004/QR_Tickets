@@ -506,7 +506,7 @@ app.post('/api/approve-payment/:id', async (req, res) => {
           to: attendee.email ? attendee.email.trim() : '',
           subject: `Your ${attendee.title} Event Pass`,
           html: `
-            <div style="font-family: Arial; text-align: center; background: #111; padding: 40px; color: white;">
+            <div style="font-family: Arial; text-align: center; background: #111; padding: 20px; color: white;">
               <h1 style="color:#FFD700;">${attendee.title}</h1>
               <p>Venue: ${attendee.venue}</p>
               <p>Date: ${new Date(attendee.event_date).toLocaleDateString()}</p>
@@ -514,8 +514,8 @@ app.post('/api/approve-payment/:id', async (req, res) => {
               <p style="font-size:18px;">Payment Approved</p>
               <p>Ticket Type: ${attendee.ticket_type}</p>
               <p>Allowed Entries: ${attendee.allowed_entries}</p>
-              <div style="background:white; padding:15px; border-radius:15px; display:inline-block; margin-top:20px; max-width: 100%; box-sizing: border-box;">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${attendee.qr_token}" style="width: 250px; max-width: 100%; height: auto;" alt="QR Code" />
+              <div style="background:white; padding:10px; border-radius:15px; display:inline-block; margin-top:20px;">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${attendee.qr_token}" width="200" height="200" style="display: block; max-width: 100%; height: auto;" alt="QR Code" />
               </div>
               <h3 style="margin-top:30px;">See you at the event ✨</h3>
             </div>

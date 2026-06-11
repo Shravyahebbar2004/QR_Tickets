@@ -282,26 +282,7 @@ const allowed_entries = req.body.allowed_entries;
 
 
 
-      // CHECK DUPLICATE EMAIL
 
-      const existingUser = await pool.query(
-        "SELECT * FROM registrations WHERE LOWER(email) = LOWER($1) AND event_id = $2",
-        [email.toLowerCase().trim(), event_id]
-      );
-
-
-
-      if (existingUser.rows.length > 0) {
-
-        return res.status(400).json({
-
-          success: false,
-
-          message: 'Email already registered'
-
-        });
-
-      }
 
 
 
@@ -998,7 +979,9 @@ app.post(
         slab3_solo_price,
         slab3_couple_price,
         slab3_group_price,
-        slab3_deadline
+        slab3_deadline,
+        bulk_pass_price,
+        bulk_pass_entries
       } = req.body;
 
       // BANNER URL
@@ -1036,12 +1019,14 @@ app.post(
           slab3_solo_price,
           slab3_couple_price,
           slab3_group_price,
-          slab3_deadline
+          slab3_deadline,
+          bulk_pass_price,
+          bulk_pass_entries
         )
 
         VALUES
         (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22
         )
 
         RETURNING *
@@ -1068,7 +1053,9 @@ app.post(
           slab3_solo_price || null,
           slab3_couple_price || null,
           slab3_group_price || null,
-          slab3_deadline || null
+          slab3_deadline || null,
+          bulk_pass_price || null,
+          bulk_pass_entries || null
         ]
 
       );
@@ -1123,7 +1110,8 @@ app.put('/api/edit-event/:id', async (req, res) => {
       title, tagline, description, venue, event_date, category, organizer_name,
       slab1_solo_price, slab1_couple_price, slab1_group_price, slab1_deadline,
       slab2_solo_price, slab2_couple_price, slab2_group_price, slab2_deadline,
-      slab3_solo_price, slab3_couple_price, slab3_group_price, slab3_deadline
+      slab3_solo_price, slab3_couple_price, slab3_group_price, slab3_deadline,
+      bulk_pass_price, bulk_pass_entries
     } = req.body;
 
     const updatedEvent = await pool.query(
@@ -1134,8 +1122,9 @@ app.put('/api/edit-event/:id', async (req, res) => {
         category = $6, organizer_name = $7,
         slab1_solo_price = $8, slab1_couple_price = $9, slab1_group_price = $10, slab1_deadline = $11,
         slab2_solo_price = $12, slab2_couple_price = $13, slab2_group_price = $14, slab2_deadline = $15,
-        slab3_solo_price = $16, slab3_couple_price = $17, slab3_group_price = $18, slab3_deadline = $19
-      WHERE event_id = $20
+        slab3_solo_price = $16, slab3_couple_price = $17, slab3_group_price = $18, slab3_deadline = $19,
+        bulk_pass_price = $20, bulk_pass_entries = $21
+      WHERE event_id = $22
       RETURNING *
       `,
       [
@@ -1143,6 +1132,7 @@ app.put('/api/edit-event/:id', async (req, res) => {
         slab1_solo_price || null, slab1_couple_price || null, slab1_group_price || null, slab1_deadline || null,
         slab2_solo_price || null, slab2_couple_price || null, slab2_group_price || null, slab2_deadline || null,
         slab3_solo_price || null, slab3_couple_price || null, slab3_group_price || null, slab3_deadline || null,
+        bulk_pass_price || null, bulk_pass_entries || null,
         event_id
       ]
     );
@@ -1251,15 +1241,22 @@ app.post('/api/verify-ticket', async (req, res) => {
 
     }
 
-    // ENTRY LIMIT CHECK
+    // ATOMIC ENTRY LIMIT CHECK & UPDATE
 
-    if (
+    const updateResult = await pool.query(
 
-      attendee.used_entries >=
+      `
+      UPDATE registrations
+      SET used_entries = used_entries + 1
+      WHERE qr_token = $1 AND used_entries < allowed_entries
+      RETURNING *
+      `,
 
-      attendee.allowed_entries
+      [qr_token]
 
-    ) {
+    );
+
+    if (updateResult.rowCount === 0) {
 
       return res.json({
 
@@ -1271,19 +1268,7 @@ app.post('/api/verify-ticket', async (req, res) => {
 
     }
 
-    // UPDATE ENTRY COUNT
-
-    await pool.query(
-
-      `
-      UPDATE registrations
-      SET used_entries = used_entries + 1
-      WHERE qr_token = $1
-      `,
-
-      [qr_token]
-
-    );
+    const updatedAttendee = updateResult.rows[0];
 
     // SAVE ENTRY LOG
 
@@ -1317,7 +1302,7 @@ app.post('/api/verify-ticket', async (req, res) => {
 
       message: 'Entry Allowed',
 
-      attendee
+      attendee: updatedAttendee
 
     });
 
@@ -1415,7 +1400,7 @@ app.post('/api/my-ticket', async (req, res) => {
 
       success: true,
 
-      data: user.rows[0]
+      data: user.rows
 
     });
 

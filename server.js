@@ -222,35 +222,35 @@ app.post(
 
       const full_name = req.body.full_name;
 
-const email = req.body.email;
+      const email = req.body.email;
 
-// EMAIL VALIDATION
+      // EMAIL VALIDATION
 
-const emailRegex =
-/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const emailRegex =
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-if (!emailRegex.test(email)) {
+      if (!emailRegex.test(email)) {
 
-  return res.status(400).json({
+        return res.status(400).json({
 
-    success: false,
+          success: false,
 
-    message: 'Invalid Email Address'
+          message: 'Invalid Email Address'
 
-  });
+        });
 
-}
+      }
 
-const cleanEmail =
+      const cleanEmail =
 
-  email.toLowerCase().trim();
+        email.toLowerCase().trim();
 
-const phone_number =
-  req.body.phone_number;
+      const phone_number =
+        req.body.phone_number;
 
-const tickets = JSON.parse(req.body.tickets);
-const event_id = req.body.event_id;
-const total_amount = req.body.total_amount;
+      const tickets = JSON.parse(req.body.tickets);
+      const event_id = req.body.event_id;
+      const total_amount = req.body.total_amount;
 
       // PAYMENT SCREENSHOT
 
@@ -275,39 +275,39 @@ const total_amount = req.body.total_amount;
       }
 
 
-// RESTORE DUPLICATE EMAIL CHECK
-const existing = await pool.query(
-  `SELECT * FROM registrations WHERE email = $1 AND event_id = $2`,
-  [cleanEmail, event_id]
-);
+      // RESTORE DUPLICATE EMAIL CHECK
+      const existing = await pool.query(
+        `SELECT * FROM registrations WHERE email = $1 AND event_id = $2`,
+        [cleanEmail, event_id]
+      );
 
-if (existing.rows.length > 0) {
-  return res.status(400).json({
-    success: false,
-    message: 'This email has already registered for this event!'
-  });
-}
+      if (existing.rows.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'This email has already registered for this event!'
+        });
+      }
 
-// SAVE USERS
-const generatedData = [];
+      // SAVE USERS
+      const generatedData = [];
 
-for (const ticket_type of tickets) {
-  // Determine allowed entries for this specific ticket
-  let current_allowed = 1;
-  if (ticket_type === 'couple') current_allowed = 2;
-  else if (ticket_type === 'group') current_allowed = 4; // GROUP IS 4 NOW!
-  else if (ticket_type === 'bulk') current_allowed = Number(req.body.allowed_entries); // If bulk, use the sum or something? Wait...
+      for (const ticket_type of tickets) {
+        // Determine allowed entries for this specific ticket
+        let current_allowed = 1;
+        if (ticket_type === 'couple') current_allowed = 2;
+        else if (ticket_type === 'group') current_allowed = 4; // GROUP IS 4 NOW!
+        else if (ticket_type === 'bulk') current_allowed = Number(req.body.allowed_entries); // If bulk, use the sum or something? Wait...
 
-  // Wait, if it's bulk, we should probably just fetch the event bulk entries
-  if (ticket_type === 'bulk') {
-    const evtData = await pool.query(`SELECT bulk_pass_entries FROM events WHERE event_id = $1`, [event_id]);
-    current_allowed = Number(evtData.rows[0].bulk_pass_entries) || 1;
-  }
+        // Wait, if it's bulk, we should probably just fetch the event bulk entries
+        if (ticket_type === 'bulk') {
+          const evtData = await pool.query(`SELECT bulk_pass_entries FROM events WHERE event_id = $1`, [event_id]);
+          current_allowed = Number(evtData.rows[0].bulk_pass_entries) || 1;
+        }
 
-  const qr_token = uuidv4();
+        const qr_token = uuidv4();
 
-  const newRegistration = await pool.query(
-    `
+        const newRegistration = await pool.query(
+          `
     INSERT INTO registrations
     (
       full_name,
@@ -325,23 +325,23 @@ for (const ticket_type of tickets) {
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     RETURNING *
     `,
-    [
-      full_name,
-      cleanEmail,
-      phone_number,
-      ticket_type,
-      total_amount,
-      current_allowed,
-      0,
-      qr_token,
-      payment_proof,
-      'pending',
-      event_id
-    ]
-  );
-  
-  generatedData.push(newRegistration.rows[0]);
-}
+          [
+            full_name,
+            cleanEmail,
+            phone_number,
+            ticket_type,
+            total_amount,
+            current_allowed,
+            0,
+            qr_token,
+            payment_proof,
+            'pending',
+            event_id
+          ]
+        );
+
+        generatedData.push(newRegistration.rows[0]);
+      }
 
 
 
@@ -392,7 +392,7 @@ app.post('/api/approve-payment/:id', async (req, res) => {
 
     const user = await pool.query(
 
-  `
+      `
   SELECT
 
   r.*,
@@ -411,9 +411,9 @@ app.post('/api/approve-payment/:id', async (req, res) => {
   WHERE r.registration_id = $1
   `,
 
-  [id]
+      [id]
 
-);
+    );
 
 
 
@@ -514,19 +514,11 @@ app.post('/api/approve-payment/:id', async (req, res) => {
               <p>Ticket Type: ${attendee.ticket_type}</p>
               <p>Allowed Entries: ${attendee.allowed_entries}</p>
               <div style="background:white; padding:20px; border-radius:20px; display:inline-block; margin-top:20px;">
-                <img src="cid:qr_code_img" width="250" />
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${attendee.qr_token}" width="250" alt="QR Code" />
               </div>
               <h3 style="margin-top:30px;">See you at the event ✨</h3>
             </div>
-          `,
-          attachments: [
-            {
-              filename: `${attendee.title}-qr.png`,
-              content: qr_code.split('base64,')[1],
-              encoding: 'base64',
-              cid: 'qr_code_img'
-            }
-          ]
+          `
         });
         console.log("BACKGROUND EMAIL SENT SUCCESSFULLY TO", attendee.email);
       } catch (err) {
@@ -684,7 +676,7 @@ app.post('/api/admin/login', async (req, res) => {
       success: true,
 
       token,
-      
+
       event_id: admin.rows[0].event_id
 
     });
@@ -796,16 +788,16 @@ app.post('/api/scanner/login', async (req, res) => {
     );
 
 
-res.json({
+    res.json({
 
-  success: true,
+      success: true,
 
-  token,
+      token,
 
-  event_id:
-    scanner.rows[0].event_id
+      event_id:
+        scanner.rows[0].event_id
 
-});
+    });
 
   } catch (error) {
 

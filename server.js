@@ -248,15 +248,9 @@ const cleanEmail =
 const phone_number =
   req.body.phone_number;
 
-const ticket_type = req.body.ticket_type;
+const tickets = JSON.parse(req.body.tickets);
 const event_id = req.body.event_id;
 const total_amount = req.body.total_amount;
-const allowed_entries = req.body.allowed_entries;
-
-
-      // TICKET LOGIC (Now handled dynamically by frontend)
-
-
 
       // PAYMENT SCREENSHOT
 
@@ -281,82 +275,73 @@ const allowed_entries = req.body.allowed_entries;
       }
 
 
-
-
-
-
-
-      // GENERATE TOKEN
-
-      const qr_token = uuidv4();
-
-
-
-      // SAVE USER
-// SAVE USER
-
-const newRegistration = await pool.query(
-
-  `
-  INSERT INTO registrations
-  (
-    full_name,
-    email,
-    phone_number,
-    ticket_type,
-    total_amount,
-    allowed_entries,
-    used_entries,
-    qr_token,
-    payment_proof,
-    payment_status,
-    event_id
-  )
-
-  VALUES (
-    $1,
-    $2,
-    $3,
-    $4,
-    $5,
-    $6,
-    $7,
-    $8,
-    $9,
-    $10,
-    $11
-  )
-
-  RETURNING *
-  `,
-
-  [
-
-    full_name,
-
-    cleanEmail,
-
-    phone_number,
-
-    ticket_type,
-
-    total_amount,
-
-    allowed_entries,
-
-    0,
-
-    qr_token,
-
-    payment_proof,
-
-    'pending',
-
-    event_id
-
-  ]
-
+// RESTORE DUPLICATE EMAIL CHECK
+const existing = await pool.query(
+  `SELECT * FROM registrations WHERE email = $1 AND event_id = $2`,
+  [cleanEmail, event_id]
 );
+
+if (existing.rows.length > 0) {
+  return res.status(400).json({
+    success: false,
+    message: 'This email has already registered for this event!'
+  });
+}
+
+// SAVE USERS
+const generatedData = [];
+
+for (const ticket_type of tickets) {
+  // Determine allowed entries for this specific ticket
+  let current_allowed = 1;
+  if (ticket_type === 'couple') current_allowed = 2;
+  else if (ticket_type === 'group') current_allowed = 4; // GROUP IS 4 NOW!
+  else if (ticket_type === 'bulk') current_allowed = Number(req.body.allowed_entries); // If bulk, use the sum or something? Wait...
+
+  // Wait, if it's bulk, we should probably just fetch the event bulk entries
+  if (ticket_type === 'bulk') {
+    const evtData = await pool.query(`SELECT bulk_pass_entries FROM events WHERE event_id = $1`, [event_id]);
+    current_allowed = Number(evtData.rows[0].bulk_pass_entries) || 1;
+  }
+
+  const qr_token = uuidv4();
+
+  const newRegistration = await pool.query(
+    `
+    INSERT INTO registrations
+    (
+      full_name,
+      email,
+      phone_number,
+      ticket_type,
+      total_amount,
+      allowed_entries,
+      used_entries,
+      qr_token,
+      payment_proof,
+      payment_status,
+      event_id
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    RETURNING *
+    `,
+    [
+      full_name,
+      cleanEmail,
+      phone_number,
+      ticket_type,
+      total_amount,
+      current_allowed,
+      0,
+      qr_token,
+      payment_proof,
+      'pending',
+      event_id
+    ]
+  );
+  
+  generatedData.push(newRegistration.rows[0]);
+}
 
 
 
@@ -366,7 +351,7 @@ const newRegistration = await pool.query(
 
         message: 'Registration Submitted',
 
-        data: newRegistration.rows[0]
+        data: generatedData
 
       });
 

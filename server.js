@@ -537,7 +537,7 @@ app.post('/api/approve-payment/:id', async (req, res) => {
 
       from: process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : '',
 
-      to: attendee.email,
+      to: attendee.email ? attendee.email.trim() : '',
 
       subject: `Your ${attendee.title} Event Pass`,
 

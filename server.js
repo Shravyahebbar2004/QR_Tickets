@@ -1028,8 +1028,19 @@ app.post(
         venue,
         event_date,
         category,
-        organizer_name
-
+        organizer_name,
+        slab1_solo_price,
+        slab1_couple_price,
+        slab1_group_price,
+        slab1_deadline,
+        slab2_solo_price,
+        slab2_couple_price,
+        slab2_group_price,
+        slab2_deadline,
+        slab3_solo_price,
+        slab3_couple_price,
+        slab3_group_price,
+        slab3_deadline
       } = req.body;
 
       // BANNER URL
@@ -1055,13 +1066,24 @@ app.post(
           event_date, 
           category,
           organizer_name,
-          banner_url
-
+          banner_url,
+          slab1_solo_price,
+          slab1_couple_price,
+          slab1_group_price,
+          slab1_deadline,
+          slab2_solo_price,
+          slab2_couple_price,
+          slab2_group_price,
+          slab2_deadline,
+          slab3_solo_price,
+          slab3_couple_price,
+          slab3_group_price,
+          slab3_deadline
         )
 
         VALUES
         (
-          $1,$2,$3,$4,$5,$6,$7,$8
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
         )
 
         RETURNING *
@@ -1076,8 +1098,19 @@ app.post(
           event_date,
           category,
           organizer_name,
-          banner_url
-
+          banner_url,
+          slab1_solo_price || null,
+          slab1_couple_price || null,
+          slab1_group_price || null,
+          slab1_deadline || null,
+          slab2_solo_price || null,
+          slab2_couple_price || null,
+          slab2_group_price || null,
+          slab2_deadline || null,
+          slab3_solo_price || null,
+          slab3_couple_price || null,
+          slab3_group_price || null,
+          slab3_deadline || null
         ]
 
       );

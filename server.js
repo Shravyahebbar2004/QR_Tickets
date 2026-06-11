@@ -248,50 +248,13 @@ const cleanEmail =
 const phone_number =
   req.body.phone_number;
 
-const ticket_type =
-  req.body.ticket_type;
-
-const event_id =
-  req.body.event_id;
-
-
-      // =====================================
-      // TICKET LOGIC
-      // =====================================
-
-      let total_amount = 0;
-
-      let allowed_entries = 1;
+const ticket_type = req.body.ticket_type;
+const event_id = req.body.event_id;
+const total_amount = req.body.total_amount;
+const allowed_entries = req.body.allowed_entries;
 
 
-
-      if (ticket_type === 'solo') {
-
-        total_amount = 299;
-
-        allowed_entries = 1;
-
-      }
-
-
-
-      if (ticket_type === 'couple') {
-
-        total_amount = 499;
-
-        allowed_entries = 2;
-
-      }
-
-
-
-      if (ticket_type === 'group') {
-
-        total_amount = 899;
-
-        allowed_entries = 4;
-
-      }
+      // TICKET LOGIC (Now handled dynamically by frontend)
 
 
 
@@ -322,15 +285,8 @@ const event_id =
       // CHECK DUPLICATE EMAIL
 
       const existingUser = await pool.query(
-
-        `
-        SELECT *
-        FROM registrations
-        WHERE LOWER(email) = LOWER($1)
-        `,
-
-        [email.toLowerCase().trim()]
-
+        "SELECT * FROM registrations WHERE LOWER(email) = LOWER($1) AND event_id = $2",
+        [email.toLowerCase().trim(), event_id]
       );
 
 
@@ -1029,6 +985,8 @@ app.post(
         event_date,
         category,
         organizer_name,
+        organizer_username,
+        organizer_password,
         slab1_solo_price,
         slab1_couple_price,
         slab1_group_price,
@@ -1115,6 +1073,17 @@ app.post(
 
       );
 
+      // INSERT ADMIN ACCOUNT
+      if (organizer_username && organizer_password) {
+        await pool.query(
+          `
+          INSERT INTO admins (username, password, event_id)
+          VALUES ($1, $2, $3)
+          `,
+          [organizer_username, organizer_password, newEvent.rows[0].event_id]
+        );
+      }
+
       res.json({
 
         success: true,
@@ -1142,6 +1111,48 @@ app.post(
   }
 
 );
+
+// =====================================
+// EDIT EVENT API
+// =====================================
+
+app.put('/api/edit-event/:id', async (req, res) => {
+  try {
+    const event_id = req.params.id;
+    const {
+      title, tagline, description, venue, event_date, category, organizer_name,
+      slab1_solo_price, slab1_couple_price, slab1_group_price, slab1_deadline,
+      slab2_solo_price, slab2_couple_price, slab2_group_price, slab2_deadline,
+      slab3_solo_price, slab3_couple_price, slab3_group_price, slab3_deadline
+    } = req.body;
+
+    const updatedEvent = await pool.query(
+      `
+      UPDATE events
+      SET
+        title = $1, tagline = $2, description = $3, venue = $4, event_date = $5,
+        category = $6, organizer_name = $7,
+        slab1_solo_price = $8, slab1_couple_price = $9, slab1_group_price = $10, slab1_deadline = $11,
+        slab2_solo_price = $12, slab2_couple_price = $13, slab2_group_price = $14, slab2_deadline = $15,
+        slab3_solo_price = $16, slab3_couple_price = $17, slab3_group_price = $18, slab3_deadline = $19
+      WHERE event_id = $20
+      RETURNING *
+      `,
+      [
+        title, tagline, description, venue, event_date, category, organizer_name,
+        slab1_solo_price || null, slab1_couple_price || null, slab1_group_price || null, slab1_deadline || null,
+        slab2_solo_price || null, slab2_couple_price || null, slab2_group_price || null, slab2_deadline || null,
+        slab3_solo_price || null, slab3_couple_price || null, slab3_group_price || null, slab3_deadline || null,
+        event_id
+      ]
+    );
+
+    res.json({ success: true, event: updatedEvent.rows[0] });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ success: false, message: 'Event Update Failed' });
+  }
+});
 
 
 // =====================================

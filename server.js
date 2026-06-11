@@ -918,9 +918,8 @@ app.post('/api/scanner/login', async (req, res) => {
 
       {
 
-        scanner_id:
-
-          scanner.rows[0].scanner_id
+        scanner_id: scanner.rows[0].scanner_id,
+        event_id: scanner.rows[0].event_id
 
       },
 
@@ -1132,6 +1131,14 @@ app.post('/api/verify-ticket', async (req, res) => {
     }
 
     const attendee = user.rows[0];
+
+    // EVENT CHECK
+    if (String(attendee.event_id) !== String(decoded.event_id)) {
+      return res.json({
+        success: false,
+        message: 'Invalid Event Ticket'
+      });
+    }
 
     // PAYMENT CHECK
 

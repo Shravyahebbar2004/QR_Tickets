@@ -497,151 +497,42 @@ app.post('/api/approve-payment/:id', async (req, res) => {
 
     });
 
-    // SEND EMAIL IN BACKGROUND (NO AWAIT)
-
-    transporter.sendMail({
-
-      from: process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : '',
-
-      to: attendee.email ? attendee.email.trim() : '',
-
-      subject: `Your ${attendee.title} Event Pass`,
-
-      html: `
-
-        <div
-
-          style="
-
-            font-family: Arial;
-
-            text-align: center;
-
-            background: #111;
-
-            padding: 40px;
-
-            color: white;
-
-          "
-
-        >
-
-          <h1 style="color:#FFD700;">
-
-          ${attendee.title}
-
-          </h1>
-
-          <p>
-
-            Venue:
-
-            ${attendee.venue}
-
-          </p>
-
-          <p>
-
-            Date:
-
-            ${new Date(
-
-              attendee.event_date
-
-            ).toLocaleDateString()}
-
-          </p>
-
-          <p>
-
-            Organizer:
-
-            ${attendee.organizer_name}
-
-          </p>
-
-          <p style="font-size:18px;">
-
-            Payment Approved 
-
-          </p>
-
-          <p>
-
-            Ticket Type:
-
-            ${attendee.ticket_type}
-
-          </p>
-
-          <p>
-
-            Allowed Entries:
-
-            ${attendee.allowed_entries}
-
-          </p>
-
-          <div
-
-            style="
-
-              background:white;
-
-              padding:20px;
-
-              border-radius:20px;
-
-              display:inline-block;
-
-              margin-top:20px;
-
-            "
-
-          >
-
-            <img
-
-              src="cid:qr_code_img"
-
-              width="250"
-
-            />
-
-          </div>
-
-          <h3 style="margin-top:30px;">
-
-            See you at the event ✨
-
-          </h3>
-
-        </div>
-
-      `,
-
-      attachments: [
-
-        {
-
-          filename: `${attendee.title}-qr.png`,
-
-          content: qr_code.split('base64,')[1],
-
-          encoding: 'base64',
-
-          cid: 'qr_code_img'
-
-        }
-
-      ]
-
-    }).catch(err => {
-      console.log('Background Email Error:', err.message);
-    });
-
-    // Response is already sent above
+    // SEND EMAIL IN BACKGROUND
+    (async () => {
+      try {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : '',
+          to: attendee.email ? attendee.email.trim() : '',
+          subject: `Your ${attendee.title} Event Pass`,
+          html: `
+            <div style="font-family: Arial; text-align: center; background: #111; padding: 40px; color: white;">
+              <h1 style="color:#FFD700;">${attendee.title}</h1>
+              <p>Venue: ${attendee.venue}</p>
+              <p>Date: ${new Date(attendee.event_date).toLocaleDateString()}</p>
+              <p>Organizer: ${attendee.organizer_name}</p>
+              <p style="font-size:18px;">Payment Approved</p>
+              <p>Ticket Type: ${attendee.ticket_type}</p>
+              <p>Allowed Entries: ${attendee.allowed_entries}</p>
+              <div style="background:white; padding:20px; border-radius:20px; display:inline-block; margin-top:20px;">
+                <img src="cid:qr_code_img" width="250" />
+              </div>
+              <h3 style="margin-top:30px;">See you at the event ✨</h3>
+            </div>
+          `,
+          attachments: [
+            {
+              filename: `${attendee.title}-qr.png`,
+              content: qr_code.split('base64,')[1],
+              encoding: 'base64',
+              cid: 'qr_code_img'
+            }
+          ]
+        });
+        console.log("BACKGROUND EMAIL SENT SUCCESSFULLY TO", attendee.email);
+      } catch (err) {
+        console.error('BACKGROUND EMAIL ERROR:', err);
+      }
+    })();
 
   } catch (error) {
 

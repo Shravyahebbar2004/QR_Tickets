@@ -3,8 +3,15 @@ const cors = require('cors');
 const pool = require('./db');
 const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
-const { Resend } = require('resend');
-const resend = new Resend(process.env.RESEND_API_KEY || 're_123456789');
+const nodemailer = require('nodemailer');
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS
+  }
+});
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
@@ -498,8 +505,8 @@ app.post('/api/approve-payment/:id', async (req, res) => {
     // SEND EMAIL IN BACKGROUND
     (async () => {
       try {
-        const { data, error } = await resend.emails.send({
-          from: 'EventFlow <onboarding@resend.dev>',
+        const info = await transporter.sendMail({
+          from: `"EventFlow" <${process.env.GMAIL_USER}>`,
           to: attendee.email ? attendee.email.trim() : '',
           subject: `Your ${attendee.title} Event Pass`,
           html: `
@@ -518,10 +525,6 @@ app.post('/api/approve-payment/:id', async (req, res) => {
             </div>
           `
         });
-
-        if (error) {
-          throw new Error(error.message);
-        }
         console.log("BACKGROUND EMAIL SENT SUCCESSFULLY TO", attendee.email);
       } catch (err) {
         console.error('BACKGROUND EMAIL ERROR:', err);

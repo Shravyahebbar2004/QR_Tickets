@@ -854,7 +854,9 @@ app.post(
         slab3_group_price,
         slab3_deadline,
         bulk_pass_price,
-        bulk_pass_entries
+        bulk_pass_entries,
+        scanner_username,
+        scanner_password
       } = req.body;
 
       // BANNER URL
@@ -956,6 +958,24 @@ app.post(
           `,
           [organizer_username, organizer_password, newEvent.rows[0].event_id]
         );
+      }
+
+      // INSERT SCANNER ACCOUNT
+      if (scanner_username && scanner_password) {
+        // Optional duplicate check for scanner username
+        const existingScanner = await pool.query(
+          `SELECT * FROM scanner_admins WHERE username = $1`,
+          [scanner_username]
+        );
+        if (existingScanner.rows.length === 0) {
+          await pool.query(
+            `
+            INSERT INTO scanner_admins (username, password, event_id)
+            VALUES ($1, $2, $3)
+            `,
+            [scanner_username, scanner_password, newEvent.rows[0].event_id]
+          );
+        }
       }
 
       res.json({

@@ -48,8 +48,7 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: 'qr_generator_uploads',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'pdf']
+    folder: 'qr_generator_uploads'
   }
 });
 
@@ -815,7 +814,15 @@ app.post(
 
   '/api/create-event',
 
-  upload.single('banner'),
+  (req, res, next) => {
+    upload.single('banner')(req, res, (err) => {
+      if (err) {
+        console.error('MULTER ERROR:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
+        return res.status(500).json({ success: false, message: 'Multer error', error: err });
+      }
+      next();
+    });
+  },
 
   async (req, res) => {
 

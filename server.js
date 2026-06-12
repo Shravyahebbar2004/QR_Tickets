@@ -18,7 +18,13 @@ app.use(cors({
 
 app.use(express.json());
 
+// =====================================
+// SERVER WAKEUP PING
+// =====================================
 
+app.get('/api/ping', (req, res) => {
+  res.status(200).send('pong');
+});
 
 // =====================================
 // SERVE UPLOADS
@@ -279,21 +285,20 @@ app.post(
         });
       }
 
-      // SAVE USERS
-      const generatedData = [];
+      // PRE-FETCH BULK PASS ENTRIES IF NEEDED
+      let bulk_entries = 1;
+      if (tickets.includes('bulk')) {
+        const evtData = await pool.query(`SELECT bulk_pass_entries FROM events WHERE event_id = $1`, [event_id]);
+        bulk_entries = Number(evtData.rows[0].bulk_pass_entries) || 1;
+      }
 
-      for (const ticket_type of tickets) {
+      // SAVE USERS IN PARALLEL
+      const ticketPromises = tickets.map(async (ticket_type) => {
         // Determine allowed entries for this specific ticket
         let current_allowed = 1;
         if (ticket_type === 'couple') current_allowed = 2;
         else if (ticket_type === 'group') current_allowed = 4; // GROUP IS 4 NOW!
-        else if (ticket_type === 'bulk') current_allowed = Number(req.body.allowed_entries); // If bulk, use the sum or something? Wait...
-
-        // Wait, if it's bulk, we should probably just fetch the event bulk entries
-        if (ticket_type === 'bulk') {
-          const evtData = await pool.query(`SELECT bulk_pass_entries FROM events WHERE event_id = $1`, [event_id]);
-          current_allowed = Number(evtData.rows[0].bulk_pass_entries) || 1;
-        }
+        else if (ticket_type === 'bulk') current_allowed = bulk_entries;
 
         const qr_token = uuidv4();
 
@@ -331,8 +336,10 @@ app.post(
           ]
         );
 
-        generatedData.push(newRegistration.rows[0]);
-      }
+        return newRegistration.rows[0];
+      });
+
+      const generatedData = await Promise.all(ticketPromises);
 
 
 

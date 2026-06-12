@@ -32,7 +32,7 @@ const pool = new Pool({
   // CONNECTION SETTINGS
   // =====================================
 
-  idleTimeoutMillis: 30000,
+  idleTimeoutMillis: 600000,
 
   connectionTimeoutMillis: 20000
 

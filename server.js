@@ -33,37 +33,28 @@ app.use(
 
 
 // =====================================
-// MULTER STORAGE
+// MULTER STORAGE (CLOUDINARY)
 // =====================================
 
-const storage = multer.diskStorage({
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
-  destination: function (req, file, cb) {
-
-    cb(null, 'uploads/');
-
-  },
-
-  filename: function (req, file, cb) {
-
-    cb(
-
-      null,
-
-      Date.now() + path.extname(file.originalname)
-
-    );
-
-  }
-
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'qr_generator_uploads',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'pdf']
+  }
+});
 
 const upload = multer({
-
-  storage
-
+  storage: storage
 });
 
 
@@ -257,7 +248,7 @@ app.post(
 
       const payment_proof = req.file
 
-        ? req.file.filename
+        ? req.file.path
 
         : null;
 

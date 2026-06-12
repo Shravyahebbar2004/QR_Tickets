@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const pool = require('./db');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 const QRCode = require('qrcode');
 const nodemailer = require('nodemailer');
 

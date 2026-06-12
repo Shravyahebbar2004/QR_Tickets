@@ -11,6 +11,7 @@ const transporter = nodemailer.createTransport({
     user: process.env.GMAIL_USER,
     pass: process.env.GMAIL_PASS ? process.env.GMAIL_PASS.replace(/\s+/g, '') : ''
   }
+// Render auto-deploy trigger
 });
 const jwt = require('jsonwebtoken');
 const multer = require('multer');

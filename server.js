@@ -34,6 +34,21 @@ app.get('/api/ping', (req, res) => {
   res.status(200).send('pong');
 });
 
+app.get('/api/test-email', async (req, res) => {
+  try {
+    await transporter.verify();
+    const info = await transporter.sendMail({
+      from: `"EventFlow Test" <${process.env.GMAIL_USER}>`,
+      to: process.env.GMAIL_USER,
+      subject: "Test Email from EventFlow (Live Server)",
+      text: "If you are reading this, Nodemailer is working perfectly on Render!"
+    });
+    res.json({ success: true, message: "Email sent successfully", info });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message, stack: error.stack });
+  }
+});
+
 // =====================================
 // SERVE UPLOADS
 // =====================================

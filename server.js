@@ -316,6 +316,7 @@ app.post(
       const emergency_contact_name = req.body.emergency_contact_name || '';
       const emergency_contact = req.body.emergency_contact || '';
       const blood_group = req.body.blood_group || '';
+      const gender = req.body.gender || '';
 
       let tickets = [];
       try {
@@ -414,9 +415,10 @@ app.post(
       event_id,
       emergency_contact_name,
       emergency_contact,
-      blood_group
+      blood_group,
+      gender
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
     RETURNING *
     `,
           [
@@ -433,7 +435,8 @@ app.post(
             event_id,
             emergency_contact_name,
             emergency_contact,
-            blood_group
+            blood_group,
+            gender
           ]
         );
 

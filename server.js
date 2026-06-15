@@ -11,7 +11,7 @@ const transporter = nodemailer.createTransport({
     user: process.env.GMAIL_USER,
     pass: process.env.GMAIL_PASS ? process.env.GMAIL_PASS.replace(/\s+/g, '') : ''
   }
-// Render auto-deploy trigger
+  // Render auto-deploy trigger
 });
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
@@ -1563,6 +1563,69 @@ app.get(
 );
 
 
+
+// =====================================
+// PLATFORM AUTHENTICATION
+// =====================================
+
+const AUTHORIZED_EMAIL = 'shravyahebbar07@gmail.com';
+
+app.post('/api/platform/signup', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    if (email !== AUTHORIZED_EMAIL) {
+      return res.status(403).json({ success: false, message: 'Unauthorized email address.' });
+    }
+
+    const existingUser = await pool.query('SELECT * FROM platform_users WHERE email = $1', [email]);
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ success: false, message: 'User already exists.' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    await pool.query(
+      'INSERT INTO platform_users (email, password) VALUES ($1, $2)',
+      [email, hashedPassword]
+    );
+
+    res.json({ success: true, message: 'Platform user registered successfully.' });
+  } catch (error) {
+    console.error('PLATFORM SIGNUP ERROR:', error);
+    res.status(500).json({ success: false, message: 'Signup failed.' });
+  }
+});
+
+app.post('/api/platform/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    const user = await pool.query('SELECT * FROM platform_users WHERE email = $1', [email]);
+    
+    if (user.rows.length === 0) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials.' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.rows[0].password);
+    
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials.' });
+    }
+
+    const token = jwt.sign(
+      { id: user.rows[0].id, email: user.rows[0].email },
+      process.env.JWT_SECRET || 'fallback_secret_key',
+      { expiresIn: '30d' }
+    );
+
+    res.json({ success: true, token, message: 'Login successful' });
+  } catch (error) {
+    console.error('PLATFORM LOGIN ERROR:', error);
+    res.status(500).json({ success: false, message: 'Login failed.' });
+  }
+});
 
 // =====================================
 // SERVER

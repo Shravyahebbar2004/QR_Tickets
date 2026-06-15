@@ -1374,7 +1374,9 @@ app.post('/api/my-ticket', async (req, res) => {
       e.title,
       e.venue,
       e.event_date,
-      e.organizer_name
+      e.organizer_name,
+      e.category,
+      e.custom_pricing
       FROM registrations r
       JOIN events e
       ON r.event_id = e.event_id

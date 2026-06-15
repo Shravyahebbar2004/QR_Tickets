@@ -957,6 +957,7 @@ app.post(
         slab3_deadline,
         bulk_pass_price,
         bulk_pass_entries,
+        custom_pricing,
         scanner_username,
         scanner_password
       } = req.body;
@@ -1012,12 +1013,13 @@ app.post(
           slab3_group_price,
           slab3_deadline,
           bulk_pass_price,
-          bulk_pass_entries
+          bulk_pass_entries,
+          custom_pricing
         )
 
         VALUES
         (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23
         )
 
         RETURNING *
@@ -1046,7 +1048,8 @@ app.post(
           slab3_group_price || null,
           slab3_deadline || null,
           bulk_pass_price || null,
-          bulk_pass_entries || null
+          bulk_pass_entries || null,
+          custom_pricing || '[]'
         ]
 
       );

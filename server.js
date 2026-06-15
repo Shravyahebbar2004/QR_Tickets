@@ -324,6 +324,13 @@ app.post(
       } catch (e) {
         tickets = [req.body.ticket_type || 'solo'];
       }
+      
+      let participants = [];
+      try {
+        participants = req.body.participants ? JSON.parse(req.body.participants) : [];
+      } catch (e) {
+        participants = [];
+      }
       const event_id = req.body.event_id;
       const total_amount = req.body.total_amount;
 
@@ -389,12 +396,18 @@ app.post(
       }
 
       // SAVE USERS IN PARALLEL
-      const ticketPromises = tickets.map(async (ticket_type) => {
+      const ticketPromises = tickets.map(async (ticket_type, index) => {
         // Determine allowed entries for this specific ticket
         let current_allowed = 1;
         if (ticket_type === 'couple') current_allowed = 2;
         else if (ticket_type === 'group') current_allowed = 4; // GROUP IS 4 NOW!
         else if (ticket_type === 'bulk') current_allowed = bulk_entries;
+        
+        // Grab participant specific details if they exist (Marathon)
+        const participant = participants[index] || {};
+        const p_full_name = participant.full_name || full_name;
+        const p_blood_group = participant.blood_group || blood_group;
+        const p_gender = participant.gender || gender;
 
         const qr_token = uuidv4();
 
@@ -422,7 +435,7 @@ app.post(
     RETURNING *
     `,
           [
-            full_name,
+            p_full_name,
             cleanEmail,
             phone_number,
             ticket_type,
@@ -435,8 +448,8 @@ app.post(
             event_id,
             emergency_contact_name,
             emergency_contact,
-            blood_group,
-            gender
+            p_blood_group,
+            p_gender
           ]
         );
 

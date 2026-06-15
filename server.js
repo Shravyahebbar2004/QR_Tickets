@@ -499,7 +499,9 @@ app.post('/api/approve-payment/:id', async (req, res) => {
   e.title,
   e.venue,
   e.event_date,
-  e.organizer_name
+  e.organizer_name,
+  e.category,
+  e.custom_pricing
 
   FROM registrations r
 
@@ -550,42 +552,38 @@ app.post('/api/approve-payment/:id', async (req, res) => {
 
 
 
+    // BIB NUMBER ALLOCATION
+    let generated_bib_number = null;
+    if (attendee.category && attendee.category.toLowerCase().trim() === 'marathon' && attendee.ticket_type) {
+      const distMatch = attendee.ticket_type.match(/\d+/);
+      const baseNumber = distMatch ? parseInt(distMatch[0]) * 1000 : 1000;
+      
+      const highestBibQuery = await pool.query(
+        `SELECT MAX(bib_number) as max_bib FROM registrations WHERE event_id = $1 AND ticket_type = $2`,
+        [attendee.event_id, attendee.ticket_type]
+      );
+      const maxBib = highestBibQuery.rows[0].max_bib;
+      if (maxBib && maxBib >= baseNumber) {
+        generated_bib_number = maxBib + 1;
+      } else {
+        generated_bib_number = baseNumber + 1;
+      }
+    }
+
     // GENERATE QR
+    const qr_code = await QRCode.toDataURL(attendee.qr_token);
 
-    const qr_code = await QRCode.toDataURL(
-
-      attendee.qr_token
-
-    );
-
-
-
-    // SAVE QR IMMEDIATELY FOR FAST RESPONSE
-
+    // SAVE QR AND BIB
     await pool.query(
-
       `
-
       UPDATE registrations
-
       SET
-
         payment_status = 'approved',
-
-        qr_code = $1
-
+        qr_code = $1,
+        bib_number = $3
       WHERE registration_id = $2
-
       `,
-
-      [
-
-        qr_code,
-
-        id
-
-      ]
-
+      [qr_code, id, generated_bib_number]
     );
 
     res.json({
@@ -613,6 +611,7 @@ app.post('/api/approve-payment/:id', async (req, res) => {
                 <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Phone No:</strong> ${attendee.phone_number}</p>
                 <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Amount Paid:</strong> ₹${attendee.total_amount}</p>
                 <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Ticket Type:</strong> ${attendee.ticket_type} (${attendee.allowed_entries} members)</p>
+                ${generated_bib_number ? `<p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Bib Number:</strong> #${generated_bib_number}</p>` : ''}
                 <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Venue:</strong> ${attendee.venue}</p>
                 <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Date:</strong> ${new Date(attendee.event_date).toLocaleDateString()}</p>
               </div>

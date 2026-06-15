@@ -265,10 +265,17 @@ app.post(
 
         email.toLowerCase().trim();
 
-      const phone_number =
-        req.body.phone_number;
+      const phone_number = req.body.phone_number;
+      const emergency_contact_name = req.body.emergency_contact_name || '';
+      const emergency_contact = req.body.emergency_contact || '';
+      const blood_group = req.body.blood_group || '';
 
-      const tickets = JSON.parse(req.body.tickets);
+      let tickets = [];
+      try {
+        tickets = req.body.tickets ? JSON.parse(req.body.tickets) : [req.body.ticket_type || 'solo'];
+      } catch (e) {
+        tickets = [req.body.ticket_type || 'solo'];
+      }
       const event_id = req.body.event_id;
       const total_amount = req.body.total_amount;
 
@@ -339,9 +346,12 @@ app.post(
       qr_token,
       payment_proof,
       payment_status,
-      event_id
+      event_id,
+      emergency_contact_name,
+      emergency_contact,
+      blood_group
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
     RETURNING *
     `,
           [
@@ -355,7 +365,10 @@ app.post(
             qr_token,
             payment_proof,
             'pending',
-            event_id
+            event_id,
+            emergency_contact_name,
+            emergency_contact,
+            blood_group
           ]
         );
 

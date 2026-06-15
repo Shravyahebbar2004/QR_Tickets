@@ -642,6 +642,17 @@ app.post('/api/approve-payment/:id', async (req, res) => {
                 <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Race Start Time:</strong> ${myStartTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
               `;
             }
+            if (distanceDef) {
+              if (distanceDef.bib_collection) {
+                wave_info += `<p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Bib Collection:</strong> ${distanceDef.bib_collection}</p>`;
+              }
+              if (distanceDef.additional_info) {
+                wave_info += `<p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Additional Info:</strong> ${distanceDef.additional_info}</p>`;
+              }
+              if (distanceDef.route_map_url) {
+                wave_info += `<p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Route Map:</strong> <a href="${distanceDef.route_map_url}" style="color: #67e8f9;">View Map</a></p>`;
+              }
+            }
           } catch(e) {}
         }
 

@@ -613,6 +613,38 @@ app.post('/api/approve-payment/:id', async (req, res) => {
     // SEND EMAIL IN BACKGROUND
     (async () => {
       try {
+        let wave_info = '';
+        if (attendee.category && attendee.category.toLowerCase().trim() === 'marathon' && generated_bib_number) {
+          try {
+            const customPricing = typeof attendee.custom_pricing === 'string' 
+              ? JSON.parse(attendee.custom_pricing) 
+              : attendee.custom_pricing;
+              
+            const distanceDef = customPricing?.find(d => d.name === attendee.ticket_type);
+            if (distanceDef && distanceDef.wave_size && distanceDef.start_time) {
+              const waveSize = Number(distanceDef.wave_size);
+              const waveGap = Number(distanceDef.wave_gap_mins) || 5;
+              const baseStartTime = new Date(distanceDef.start_time);
+              
+              const distMatch = attendee.ticket_type.match(/\d+/);
+              const baseBib = distMatch ? parseInt(distMatch[0]) * 1000 : 1000;
+              
+              const runnerIndex = generated_bib_number - baseBib - 1;
+              const waveIndex = Math.floor(runnerIndex / waveSize);
+              const waveLetter = String.fromCharCode(65 + waveIndex);
+              
+              const myStartTime = new Date(baseStartTime.getTime() + (waveIndex * waveGap * 60000));
+              const myReportingTime = new Date(myStartTime.getTime() - (60 * 60000));
+              
+              wave_info = `
+                <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Wave Allocation:</strong> Wave ${waveLetter}</p>
+                <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Reporting Time:</strong> ${myReportingTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Race Start Time:</strong> ${myStartTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+              `;
+            }
+          } catch(e) {}
+        }
+
         const info = await transporter.sendMail({
           from: `"EventFlow" <${process.env.GMAIL_USER}>`,
           to: attendee.email ? attendee.email.trim() : '',
@@ -628,6 +660,7 @@ app.post('/api/approve-payment/:id', async (req, res) => {
                 <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Amount Paid:</strong> ₹${attendee.total_amount}</p>
                 <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Ticket Type:</strong> ${attendee.ticket_type} (${attendee.allowed_entries} members)</p>
                 ${generated_bib_number ? `<p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Bib Number:</strong> #${generated_bib_number}</p>` : ''}
+                ${wave_info}
                 <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Venue:</strong> ${attendee.venue}</p>
                 <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Date:</strong> ${new Date(attendee.event_date).toLocaleDateString()}</p>
               </div>

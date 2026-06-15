@@ -604,18 +604,23 @@ app.post('/api/approve-payment/:id', async (req, res) => {
           to: attendee.email ? attendee.email.trim() : '',
           subject: `Your ${attendee.title} Event Pass`,
           html: `
-            <div style="font-family: Arial; text-align: center; background: #111; padding: 20px; color: white;">
-              <h1 style="color:#FFD700;">${attendee.title}</h1>
-              <p>Venue: ${attendee.venue}</p>
-              <p>Date: ${new Date(attendee.event_date).toLocaleDateString()}</p>
-              <p>Organizer: ${attendee.organizer_name}</p>
-              <p style="font-size:18px;">Payment Approved</p>
-              <p>Ticket Type: ${attendee.ticket_type}</p>
-              <p>Allowed Entries: ${attendee.allowed_entries}</p>
-              <div style="background:white; padding:10px; border-radius:15px; display:inline-block; margin-top:20px;">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${attendee.qr_token}" width="200" height="200" style="display: block; max-width: 100%; height: auto;" alt="QR Code" />
+            <div style="font-family: Arial, sans-serif; text-align: center; background: linear-gradient(135deg, #09090b, #1e1b4b, #2e1065); padding: 40px; color: white; border-radius: 20px;">
+              <h1 style="color:#67e8f9; font-size: 32px; margin-bottom: 10px;">${attendee.title}</h1>
+              <p style="color:#d8b4fe; font-size: 18px; margin-top: 0; font-weight: bold;">PASS FOR ${attendee.title.toUpperCase()}</p>
+              
+              <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 25px; max-width: 400px; margin: 30px auto; text-align: left; line-height: 1.6;">
+                <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Name:</strong> ${attendee.full_name}</p>
+                <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Phone No:</strong> ${attendee.phone_number}</p>
+                <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Amount Paid:</strong> ₹${attendee.total_amount}</p>
+                <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Ticket Type:</strong> ${attendee.ticket_type} (${attendee.allowed_entries} members)</p>
+                <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Venue:</strong> ${attendee.venue}</p>
+                <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Date:</strong> ${new Date(attendee.event_date).toLocaleDateString()}</p>
               </div>
-              <h3 style="margin-top:30px;">See you at the event ✨</h3>
+
+              <div style="background:white; padding:15px; border-radius:20px; display:inline-block; margin-top:10px;">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${attendee.qr_token}" width="250" height="250" style="display: block; max-width: 100%; height: auto;" alt="QR Code" />
+              </div>
+              <h3 style="margin-top:30px; color: #e9d5ff;">Show this pass at the entrance ✨</h3>
             </div>
           `
         });

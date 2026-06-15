@@ -227,6 +227,53 @@ app.get('/api/events', async (req, res) => {
 
 
 // =====================================
+// OTP VERIFICATION
+// =====================================
+
+app.post('/api/send-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+
+    const cleanEmail = email.toLowerCase().trim();
+    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit OTP
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Delete existing OTPs for this email to prevent clutter
+    await pool.query('DELETE FROM email_otps WHERE email = $1', [cleanEmail]);
+
+    // Insert new OTP
+    await pool.query(
+      'INSERT INTO email_otps (email, otp, expires_at) VALUES ($1, $2, $3)',
+      [cleanEmail, otp, expiresAt]
+    );
+
+    // Send Email
+    await transporter.sendMail({
+      from: `"EventFlow Verification" <${process.env.GMAIL_USER}>`,
+      to: cleanEmail,
+      subject: "Your EventFlow Registration Verification Code",
+      html: `
+        <div style="font-family: Arial; text-align: center; background: #111; padding: 30px; color: white;">
+          <h1 style="color:#FFD700;">Verification Code</h1>
+          <p style="font-size: 18px; color: #ddd;">Use the following 6-digit code to complete your event registration.</p>
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 5px; margin: 20px 0; padding: 15px; background: #222; border-radius: 10px; color: #00f2fe;">
+            ${otp}
+          </div>
+          <p style="color: #888;">This code will expire in 10 minutes.</p>
+        </div>
+      `
+    });
+
+    res.json({ success: true, message: 'OTP sent successfully' });
+  } catch (error) {
+    console.error('SEND OTP ERROR:', error);
+    res.status(500).json({ success: false, message: 'Failed to send OTP' });
+  }
+});
+
+
+// =====================================
 // REGISTER USER
 // =====================================
 
@@ -301,6 +348,24 @@ app.post(
 
       }
 
+
+      // OTP VERIFICATION
+      const otp = req.body.otp;
+      if (!otp) {
+        return res.status(400).json({ success: false, message: 'OTP is required' });
+      }
+
+      const otpCheck = await pool.query(
+        'SELECT * FROM email_otps WHERE email = $1 AND otp = $2 AND expires_at > NOW()',
+        [cleanEmail, otp]
+      );
+
+      if (otpCheck.rows.length === 0) {
+        return res.status(400).json({ success: false, message: 'Invalid or expired OTP. Please try again.' });
+      }
+
+      // Delete the OTP once verified
+      await pool.query('DELETE FROM email_otps WHERE email = $1', [cleanEmail]);
 
       // RESTORE DUPLICATE EMAIL CHECK
       const existing = await pool.query(

@@ -1123,7 +1123,7 @@ app.put('/api/edit-event/:id', async (req, res) => {
       slab1_solo_price, slab1_couple_price, slab1_group_price, slab1_deadline,
       slab2_solo_price, slab2_couple_price, slab2_group_price, slab2_deadline,
       slab3_solo_price, slab3_couple_price, slab3_group_price, slab3_deadline,
-      bulk_pass_price, bulk_pass_entries
+      bulk_pass_price, bulk_pass_entries, custom_pricing
     } = req.body;
 
     const updatedEvent = await pool.query(
@@ -1135,7 +1135,7 @@ app.put('/api/edit-event/:id', async (req, res) => {
         slab1_solo_price = $8, slab1_couple_price = $9, slab1_group_price = $10, slab1_deadline = $11,
         slab2_solo_price = $12, slab2_couple_price = $13, slab2_group_price = $14, slab2_deadline = $15,
         slab3_solo_price = $16, slab3_couple_price = $17, slab3_group_price = $18, slab3_deadline = $19,
-        bulk_pass_price = $20, bulk_pass_entries = $21
+        bulk_pass_price = $20, bulk_pass_entries = $21, custom_pricing = $23
       WHERE event_id = $22
       RETURNING *
       `,
@@ -1145,7 +1145,8 @@ app.put('/api/edit-event/:id', async (req, res) => {
         slab2_solo_price || null, slab2_couple_price || null, slab2_group_price || null, slab2_deadline || null,
         slab3_solo_price || null, slab3_couple_price || null, slab3_group_price || null, slab3_deadline || null,
         bulk_pass_price || null, bulk_pass_entries || null,
-        event_id
+        event_id,
+        custom_pricing || '[]'
       ]
     );
 

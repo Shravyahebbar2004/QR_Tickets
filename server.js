@@ -661,26 +661,34 @@ app.post('/api/approve-payment/:id', async (req, res) => {
           to: attendee.email ? attendee.email.trim() : '',
           subject: `Your ${attendee.title} Event Pass`,
           html: `
-            <div style="font-family: Arial, sans-serif; text-align: center; background: linear-gradient(135deg, #09090b, #1e1b4b, #2e1065); padding: 40px; color: white; border-radius: 20px;">
-              <h1 style="color:#67e8f9; font-size: 32px; margin-bottom: 10px;">${attendee.title}</h1>
-              <p style="color:#d8b4fe; font-size: 18px; margin-top: 0; font-weight: bold;">PASS FOR ${attendee.title.toUpperCase()}</p>
-              
-              <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 25px; max-width: 400px; margin: 30px auto; text-align: left; line-height: 1.6;">
-                <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Name:</strong> ${attendee.full_name}</p>
-                <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Phone No:</strong> ${attendee.phone_number}</p>
-                <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Amount Paid:</strong> ₹${attendee.total_amount}</p>
-                <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Ticket Type:</strong> ${attendee.ticket_type} (${attendee.allowed_entries} members)</p>
-                ${generated_bib_number ? `<p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Bib Number:</strong> #${generated_bib_number}</p>` : ''}
-                ${wave_info}
-                <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Venue:</strong> ${attendee.venue}</p>
-                <p style="margin: 8px 0; font-size: 16px;"><strong style="color: #c4b5fd;">Date:</strong> ${new Date(attendee.event_date).toLocaleDateString()}</p>
-              </div>
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #ffffff;">
+  <div style="text-align: center; background: linear-gradient(135deg, #09090b, #1e1b4b, #2e1065); padding: 30px 15px; color: white; max-width: 600px; margin: 0 auto; border-radius: 10px;">
+    <h1 style="color:#67e8f9; font-size: 28px; margin-bottom: 10px; word-break: break-word;">${attendee.title}</h1>
+    <p style="color:#d8b4fe; font-size: 16px; margin-top: 0; font-weight: bold;">PASS FOR ${attendee.title.toUpperCase()}</p>
+    
+    <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 20px; width: 100%; box-sizing: border-box; margin: 25px 0; text-align: left; line-height: 1.5; word-break: break-word;">
+      <p style="margin: 8px 0; font-size: 15px;"><strong style="color: #c4b5fd;">Name:</strong> ${attendee.full_name}</p>
+      <p style="margin: 8px 0; font-size: 15px;"><strong style="color: #c4b5fd;">Phone No:</strong> ${attendee.phone_number}</p>
+      <p style="margin: 8px 0; font-size: 15px;"><strong style="color: #c4b5fd;">Amount Paid:</strong> ₹${attendee.total_amount}</p>
+      <p style="margin: 8px 0; font-size: 15px;"><strong style="color: #c4b5fd;">Ticket Type:</strong> ${attendee.ticket_type} (${attendee.allowed_entries} members)</p>
+      ${generated_bib_number ? `<p style="margin: 8px 0; font-size: 15px;"><strong style="color: #c4b5fd;">Bib Number:</strong> #${generated_bib_number}</p>` : ''}
+      ${wave_info}
+      <p style="margin: 8px 0; font-size: 15px;"><strong style="color: #c4b5fd;">Venue:</strong> ${attendee.venue}</p>
+      <p style="margin: 8px 0; font-size: 15px;"><strong style="color: #c4b5fd;">Date:</strong> ${new Date(attendee.event_date).toLocaleDateString()}</p>
+    </div>
 
-              <div style="background:white; padding:15px; border-radius:20px; display:inline-block; margin-top:10px;">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${attendee.qr_token}" width="250" height="250" style="display: block; max-width: 100%; height: auto;" alt="QR Code" />
-              </div>
-              <h3 style="margin-top:30px; color: #e9d5ff;">Show this pass at the entrance ✨</h3>
-            </div>
+    <div style="background:white; padding:15px; border-radius:15px; display:inline-block; margin-top:5px;">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${attendee.qr_token}" width="200" height="200" style="display: block; max-width: 100%; height: auto;" alt="QR Code" />
+    </div>
+    <h3 style="margin-top:25px; color: #e9d5ff; font-size: 18px;">Show this pass at the entrance ✨</h3>
+  </div>
+</body>
+</html>
           `
         });
         console.log("BACKGROUND EMAIL SENT SUCCESSFULLY TO", attendee.email);

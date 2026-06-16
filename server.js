@@ -517,7 +517,8 @@ app.post('/api/approve-payment/:id', async (req, res) => {
   e.event_date,
   e.organizer_name,
   e.category,
-  e.custom_pricing
+  e.custom_pricing,
+  e.whatsapp_link
 
   FROM registrations r
 
@@ -670,6 +671,14 @@ app.post('/api/approve-payment/:id', async (req, res) => {
   <div style="text-align: center; background: linear-gradient(135deg, #09090b, #1e1b4b, #2e1065); padding: 30px 15px; color: white; max-width: 600px; margin: 0 auto; border-radius: 10px;">
     <h1 style="color:#67e8f9; font-size: 28px; margin-bottom: 10px; word-break: break-word;">${attendee.title}</h1>
     <p style="color:#d8b4fe; font-size: 16px; margin-top: 0; font-weight: bold;">PASS FOR ${attendee.title.toUpperCase()}</p>
+    
+    <p style="color: white; font-size: 18px; margin: 20px 0;">Thank you for registering for ${attendee.title}!</p>
+    
+    ${attendee.whatsapp_link ? `
+    <a href="${attendee.whatsapp_link}" target="_blank" style="display: inline-block; background-color: #25D366; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; margin-bottom: 10px;">
+      Join WhatsApp Group
+    </a>
+    ` : ''}
     
     <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 20px; width: 100%; box-sizing: border-box; margin: 25px 0; text-align: left; line-height: 1.5; word-break: break-word;">
       <p style="margin: 8px 0; font-size: 15px;"><strong style="color: #c4b5fd;">Name:</strong> ${attendee.full_name}</p>
@@ -1030,6 +1039,7 @@ app.post(
         bulk_pass_price,
         bulk_pass_entries,
         custom_pricing,
+        whatsapp_link,
         scanner_username,
         scanner_password
       } = req.body;
@@ -1086,12 +1096,13 @@ app.post(
           slab3_deadline,
           bulk_pass_price,
           bulk_pass_entries,
-          custom_pricing
+          custom_pricing,
+          whatsapp_link
         )
 
         VALUES
         (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24
         )
 
         RETURNING *
@@ -1121,7 +1132,8 @@ app.post(
           slab3_deadline || null,
           bulk_pass_price || null,
           bulk_pass_entries || null,
-          custom_pricing || '[]'
+          custom_pricing || '[]',
+          whatsapp_link || null
         ]
 
       );
@@ -1195,7 +1207,7 @@ app.put('/api/edit-event/:id', async (req, res) => {
       slab1_solo_price, slab1_couple_price, slab1_group_price, slab1_deadline,
       slab2_solo_price, slab2_couple_price, slab2_group_price, slab2_deadline,
       slab3_solo_price, slab3_couple_price, slab3_group_price, slab3_deadline,
-      bulk_pass_price, bulk_pass_entries, custom_pricing
+      bulk_pass_price, bulk_pass_entries, custom_pricing, whatsapp_link
     } = req.body;
 
     const updatedEvent = await pool.query(
@@ -1207,7 +1219,7 @@ app.put('/api/edit-event/:id', async (req, res) => {
         slab1_solo_price = $8, slab1_couple_price = $9, slab1_group_price = $10, slab1_deadline = $11,
         slab2_solo_price = $12, slab2_couple_price = $13, slab2_group_price = $14, slab2_deadline = $15,
         slab3_solo_price = $16, slab3_couple_price = $17, slab3_group_price = $18, slab3_deadline = $19,
-        bulk_pass_price = $20, bulk_pass_entries = $21, custom_pricing = $23
+        bulk_pass_price = $20, bulk_pass_entries = $21, custom_pricing = $23, whatsapp_link = $24
       WHERE event_id = $22
       RETURNING *
       `,
@@ -1218,7 +1230,8 @@ app.put('/api/edit-event/:id', async (req, res) => {
         slab3_solo_price || null, slab3_couple_price || null, slab3_group_price || null, slab3_deadline || null,
         bulk_pass_price || null, bulk_pass_entries || null,
         event_id,
-        custom_pricing || '[]'
+        custom_pricing || '[]',
+        whatsapp_link || null
       ]
     );
 
@@ -1443,7 +1456,8 @@ app.post('/api/my-ticket', async (req, res) => {
       e.event_date,
       e.organizer_name,
       e.category,
-      e.custom_pricing
+      e.custom_pricing,
+      e.whatsapp_link
       FROM registrations r
       JOIN events e
       ON r.event_id = e.event_id

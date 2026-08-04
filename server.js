@@ -1751,13 +1751,13 @@ app.get(
 // PLATFORM AUTHENTICATION
 // =====================================
 
-const AUTHORIZED_EMAIL = 'rotaractyelahanka.events@gmail.com';
+const AUTHORIZED_EMAILS = ['shravyahebbar07@gmail.com', 'rotaractyelahanka.events@gmail.com'];
 
 app.post('/api/platform/signup', async (req, res) => {
   try {
     const { email, password } = req.body;
     
-    if (email !== AUTHORIZED_EMAIL) {
+    if (!email || !AUTHORIZED_EMAILS.includes(email.toLowerCase().trim())) {
       return res.status(403).json({ success: false, message: 'Unauthorized email address.' });
     }
 

@@ -9,7 +9,7 @@ async function testEmail() {
   
   // NOTE: On the free tier without a verified domain,
   // the 'to' address MUST be the exact email address you used to sign up for Resend!
-  const myEmailAddress = "shravyahebbar07@gmail.com"; 
+  const myEmailAddress = "rotaractyelahanka.events@gmail.com"; 
 
   const { data, error } = await resend.emails.send({
     from: 'EventFlow <onboarding@resend.dev>',

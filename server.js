@@ -1725,7 +1725,7 @@ app.get(
 // PLATFORM AUTHENTICATION
 // =====================================
 
-const AUTHORIZED_EMAIL = 'shravyahebbar07@gmail.com';
+const AUTHORIZED_EMAIL = 'rotaractyelahanka.events@gmail.com';
 
 app.post('/api/platform/signup', async (req, res) => {
   try {

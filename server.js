@@ -695,6 +695,11 @@ app.post('/api/approve-payment/:id', async (req, res) => {
       <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${attendee.qr_token}" width="200" height="200" style="display: block; max-width: 100%; height: auto;" alt="QR Code" />
     </div>
     <h3 style="margin-top:25px; color: #e9d5ff; font-size: 18px;">Show this pass at the entrance ✨</h3>
+    
+    <div style="margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; color: #d1d5db; font-size: 13px;">
+      <p style="margin: 4px 0;">For more information or queries, contact <strong>Shravya Hebbar</strong></p>
+      <p style="margin: 4px 0;">📧 <a href="mailto:rotaractyelahanka.events@gmail.com" style="color: #67e8f9; text-decoration: underline;">rotaractyelahanka.events@gmail.com</a> | 📞 9611444945</p>
+    </div>
   </div>
 </body>
 </html>

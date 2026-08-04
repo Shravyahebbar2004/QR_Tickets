@@ -8,10 +8,9 @@ const nodemailer = require('nodemailer');
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.GMAIL_USER,
+    user: process.env.GMAIL_USER ? process.env.GMAIL_USER.trim() : '',
     pass: process.env.GMAIL_PASS ? process.env.GMAIL_PASS.replace(/\s+/g, '') : ''
   }
-  // Render auto-deploy trigger
 });
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
@@ -333,6 +332,7 @@ app.post(
       }
       const event_id = req.body.event_id;
       const total_amount = req.body.total_amount;
+      const rawCouponCode = req.body.coupon_code ? req.body.coupon_code.trim().toUpperCase() : null;
 
       // PAYMENT SCREENSHOT
 
@@ -388,11 +388,49 @@ app.post(
         });
       }
 
-      // PRE-FETCH BULK PASS ENTRIES IF NEEDED
-      let bulk_entries = 1;
-      if (tickets.includes('bulk')) {
-        const evtData = await pool.query(`SELECT bulk_pass_entries FROM events WHERE event_id = $1`, [event_id]);
-        bulk_entries = Number(evtData.rows[0].bulk_pass_entries) || 1;
+      // FETCH EVENT DATA FOR BULK PASS AND COUPONS
+      const evtData = await pool.query(`SELECT bulk_pass_entries, coupons FROM events WHERE event_id = $1`, [event_id]);
+      const eventRecord = evtData.rows[0] || {};
+      let bulk_entries = Number(eventRecord.bulk_pass_entries) || 1;
+
+      // COUPON VALIDATION & USAGE INCREMENT
+      let appliedCouponCode = null;
+      if (rawCouponCode) {
+        let coupons = [];
+        try {
+          coupons = typeof eventRecord.coupons === 'string' ? JSON.parse(eventRecord.coupons) : (eventRecord.coupons || []);
+        } catch(e) {
+          coupons = [];
+        }
+
+        const foundIndex = coupons.findIndex((c) => c.code && c.code.trim().toUpperCase() === rawCouponCode);
+        if (foundIndex === -1) {
+          return res.status(400).json({
+            success: false,
+            message: `Invalid coupon code '${rawCouponCode}'.`
+          });
+        }
+
+        const coupon = coupons[foundIndex];
+        const maxUses = Number(coupon.max_uses) || 0;
+        const currentUses = Number(coupon.used_count) || 0;
+
+        if (maxUses > 0 && currentUses >= maxUses) {
+          return res.status(400).json({
+            success: false,
+            message: `Coupon code '${rawCouponCode}' usage limit reached for the first ${maxUses} members.`
+          });
+        }
+
+        // Increment used count
+        coupons[foundIndex].used_count = currentUses + 1;
+        appliedCouponCode = coupon.code;
+
+        // Update events table with updated coupons list
+        await pool.query(
+          `UPDATE events SET coupons = $1::jsonb WHERE event_id = $2`,
+          [JSON.stringify(coupons), event_id]
+        );
       }
 
       // SAVE USERS IN PARALLEL
@@ -432,9 +470,10 @@ app.post(
       emergency_contact,
       blood_group,
       gender,
-      tshirt_size
+      tshirt_size,
+      coupon_code
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
     RETURNING *
     `,
           [
@@ -453,7 +492,8 @@ app.post(
             emergency_contact,
             p_blood_group,
             p_gender,
-            p_tshirt_size
+            p_tshirt_size,
+            appliedCouponCode
           ]
         );
 
@@ -1065,6 +1105,7 @@ app.post(
         bulk_pass_price,
         bulk_pass_entries,
         custom_pricing,
+        coupons,
         whatsapp_link,
         scanner_username,
         scanner_password
@@ -1123,12 +1164,13 @@ app.post(
           bulk_pass_price,
           bulk_pass_entries,
           custom_pricing,
+          coupons,
           whatsapp_link
         )
 
         VALUES
         (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25
         )
 
         RETURNING *
@@ -1159,6 +1201,7 @@ app.post(
           bulk_pass_price || null,
           bulk_pass_entries || null,
           custom_pricing || '[]',
+          coupons || '[]',
           whatsapp_link || null
         ]
 
@@ -1233,7 +1276,7 @@ app.put('/api/edit-event/:id', async (req, res) => {
       slab1_solo_price, slab1_couple_price, slab1_group_price, slab1_deadline,
       slab2_solo_price, slab2_couple_price, slab2_group_price, slab2_deadline,
       slab3_solo_price, slab3_couple_price, slab3_group_price, slab3_deadline,
-      bulk_pass_price, bulk_pass_entries, custom_pricing, whatsapp_link
+      bulk_pass_price, bulk_pass_entries, custom_pricing, coupons, whatsapp_link
     } = req.body;
 
     const updatedEvent = await pool.query(
@@ -1245,7 +1288,7 @@ app.put('/api/edit-event/:id', async (req, res) => {
         slab1_solo_price = $8, slab1_couple_price = $9, slab1_group_price = $10, slab1_deadline = $11,
         slab2_solo_price = $12, slab2_couple_price = $13, slab2_group_price = $14, slab2_deadline = $15,
         slab3_solo_price = $16, slab3_couple_price = $17, slab3_group_price = $18, slab3_deadline = $19,
-        bulk_pass_price = $20, bulk_pass_entries = $21, custom_pricing = $23, whatsapp_link = $24
+        bulk_pass_price = $20, bulk_pass_entries = $21, custom_pricing = $23, coupons = $25, whatsapp_link = $24
       WHERE event_id = $22
       RETURNING *
       `,
@@ -1257,7 +1300,8 @@ app.put('/api/edit-event/:id', async (req, res) => {
         bulk_pass_price || null, bulk_pass_entries || null,
         event_id,
         custom_pricing || '[]',
-        whatsapp_link || null
+        whatsapp_link || null,
+        coupons || '[]'
       ]
     );
 

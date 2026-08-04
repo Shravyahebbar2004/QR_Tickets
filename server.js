@@ -156,11 +156,17 @@ app.get('/api/event/:id', async (req, res) => {
 
     }
 
+    const regCount = await pool.query('SELECT COUNT(*) FROM registrations WHERE event_id = $1', [id]);
+    const eventData = {
+      ...event.rows[0],
+      total_registrations: Number(regCount.rows[0].count) || 0
+    };
+
     res.json({
 
       success: true,
 
-      event: event.rows[0]
+      event: eventData
 
     });
 
@@ -385,6 +391,16 @@ app.post(
         return res.status(400).json({
           success: false,
           message: 'This email has already registered for this event!'
+        });
+      }
+
+      // CHECK TOTAL CAPACITY LIMIT (MAX 300 REGISTRATIONS)
+      const countRes = await pool.query('SELECT COUNT(*) FROM registrations WHERE event_id = $1', [event_id]);
+      const totalRegistrations = Number(countRes.rows[0].count) || 0;
+      if (totalRegistrations >= 300) {
+        return res.status(400).json({
+          success: false,
+          message: 'Online registration for this event is closed as maximum capacity of 300 participants has been reached.'
         });
       }
 

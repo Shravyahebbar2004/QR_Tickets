@@ -418,7 +418,7 @@ app.post(
         if (maxUses > 0 && currentUses >= maxUses) {
           return res.status(400).json({
             success: false,
-            message: `Coupon code '${rawCouponCode}' usage limit reached for the first ${maxUses} members.`
+            message: `Coupon offer is over for code '${rawCouponCode}' (limit of ${maxUses} members reached). Please proceed with regular ticket prices.`
           });
         }
 

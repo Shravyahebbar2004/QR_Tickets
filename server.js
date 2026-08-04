@@ -403,11 +403,13 @@ app.post(
         else if (ticket_type === 'group') current_allowed = 4; // GROUP IS 4 NOW!
         else if (ticket_type === 'bulk') current_allowed = bulk_entries;
         
+        const tshirt_size = req.body.tshirt_size || '';
         // Grab participant specific details if they exist (Marathon)
         const participant = participants[index] || {};
         const p_full_name = participant.full_name || full_name;
         const p_blood_group = participant.blood_group || blood_group;
         const p_gender = participant.gender || gender;
+        const p_tshirt_size = participant.tshirt_size || tshirt_size;
 
         const qr_token = uuidv4();
 
@@ -429,9 +431,10 @@ app.post(
       emergency_contact_name,
       emergency_contact,
       blood_group,
-      gender
+      gender,
+      tshirt_size
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
     RETURNING *
     `,
           [
@@ -449,7 +452,8 @@ app.post(
             emergency_contact_name,
             emergency_contact,
             p_blood_group,
-            p_gender
+            p_gender,
+            p_tshirt_size
           ]
         );
 
@@ -569,21 +573,38 @@ app.post('/api/approve-payment/:id', async (req, res) => {
 
 
 
-    // BIB NUMBER ALLOCATION
-    let generated_bib_number = null;
+    // BIB NUMBER ALLOCATION (Guaranteed Unique per Category & Event)
+    let generated_bib_number = attendee.bib_number || null;
     if (attendee.category && attendee.category.toLowerCase().trim() === 'marathon' && attendee.ticket_type) {
-      const distMatch = attendee.ticket_type.match(/\d+/);
-      const baseNumber = distMatch ? parseInt(distMatch[0]) * 1000 : 1000;
-      
-      const highestBibQuery = await pool.query(
-        `SELECT MAX(bib_number) as max_bib FROM registrations WHERE event_id = $1 AND ticket_type = $2`,
-        [attendee.event_id, attendee.ticket_type]
-      );
-      const maxBib = highestBibQuery.rows[0].max_bib;
-      if (maxBib && maxBib >= baseNumber) {
-        generated_bib_number = maxBib + 1;
-      } else {
-        generated_bib_number = baseNumber + 1;
+      if (!generated_bib_number) {
+        const distMatch = attendee.ticket_type.match(/\d+/);
+        const distNum = distMatch ? parseInt(distMatch[0]) : 1;
+        const baseNumber = distNum * 1000;
+        
+        const highestBibQuery = await pool.query(
+          `SELECT MAX(bib_number) as max_bib FROM registrations WHERE event_id = $1 AND ticket_type = $2 AND bib_number IS NOT NULL`,
+          [attendee.event_id, attendee.ticket_type]
+        );
+        const maxBib = Number(highestBibQuery.rows[0]?.max_bib) || 0;
+        if (maxBib >= baseNumber) {
+          generated_bib_number = maxBib + 1;
+        } else {
+          generated_bib_number = baseNumber + 1;
+        }
+
+        // Loop check to guarantee 100% uniqueness (NO repetition)
+        let isDuplicate = true;
+        while (isDuplicate) {
+          const checkDup = await pool.query(
+            `SELECT 1 FROM registrations WHERE event_id = $1 AND bib_number = $2`,
+            [attendee.event_id, generated_bib_number]
+          );
+          if (checkDup.rows.length === 0) {
+            isDuplicate = false;
+          } else {
+            generated_bib_number++;
+          }
+        }
       }
     }
 
@@ -622,8 +643,8 @@ app.post('/api/approve-payment/:id', async (req, res) => {
               : attendee.custom_pricing;
               
             const distanceDef = customPricing?.find(d => d.name === attendee.ticket_type);
-            if (distanceDef && distanceDef.wave_size && distanceDef.start_time) {
-              const waveSize = Number(distanceDef.wave_size);
+            if (distanceDef && distanceDef.start_time) {
+              const waveSize = Number(distanceDef.wave_size) || 65; // Default wave capacity 65 runners (60-70 limit)
               const waveGap = Number(distanceDef.wave_gap_mins) || 5;
               const baseStartTime = new Date(distanceDef.start_time);
               
@@ -631,7 +652,7 @@ app.post('/api/approve-payment/:id', async (req, res) => {
               const baseBib = distMatch ? parseInt(distMatch[0]) * 1000 : 1000;
               
               const runnerIndex = generated_bib_number - baseBib - 1;
-              const waveIndex = Math.floor(runnerIndex / waveSize);
+              const waveIndex = Math.max(0, Math.floor(runnerIndex / waveSize));
               const waveLetter = String.fromCharCode(65 + waveIndex);
               
               const myStartTime = new Date(baseStartTime.getTime() + (waveIndex * waveGap * 60000));

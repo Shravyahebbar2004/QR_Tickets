@@ -5,13 +5,29 @@ const { randomUUID: uuidv4 } = require('crypto');
 const QRCode = require('qrcode');
 const nodemailer = require('nodemailer');
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER ? process.env.GMAIL_USER.trim() : '',
-    pass: process.env.GMAIL_PASS ? process.env.GMAIL_PASS.replace(/\s+/g, '') : ''
-  }
-});
+const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+const smtpPort = Number(process.env.SMTP_PORT) || 465;
+const isSecure = smtpPort === 465;
+
+const transporter = nodemailer.createTransport(
+  smtpHost.includes('gmail.com')
+    ? {
+        service: 'gmail',
+        auth: {
+          user: process.env.GMAIL_USER ? process.env.GMAIL_USER.trim() : '',
+          pass: process.env.GMAIL_PASS ? process.env.GMAIL_PASS.replace(/\s+/g, '') : ''
+        }
+      }
+    : {
+        host: smtpHost,
+        port: smtpPort,
+        secure: isSecure,
+        auth: {
+          user: process.env.GMAIL_USER ? process.env.GMAIL_USER.trim() : '',
+          pass: process.env.GMAIL_PASS ? process.env.GMAIL_PASS.replace(/\s+/g, '') : ''
+        }
+      }
+);
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');

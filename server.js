@@ -322,7 +322,7 @@ app.post(
       const emergency_contact = req.body.emergency_contact || '';
       const blood_group = req.body.blood_group || '';
       const gender = req.body.gender || '';
-      const club_affiliation = req.body.club_affiliation || 'General Public / Other';
+      const club_affiliation = req.body.club_affiliation || '';
 
       let tickets = [];
       try {

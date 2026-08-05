@@ -156,7 +156,7 @@ app.get('/api/event/:id', async (req, res) => {
 
     }
 
-    const regCount = await pool.query('SELECT COUNT(*) FROM registrations WHERE event_id = $1', [id]);
+    const regCount = await pool.query("SELECT COUNT(*) FROM registrations WHERE event_id = $1 AND payment_status != 'draft'", [id]);
     const eventData = {
       ...event.rows[0],
       total_registrations: Number(regCount.rows[0].count) || 0
@@ -235,47 +235,102 @@ app.get('/api/events', async (req, res) => {
 // OTP VERIFICATION
 // =====================================
 
-app.post('/api/send-otp', async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
-
-    const cleanEmail = email.toLowerCase().trim();
-    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit OTP
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    // Delete existing OTPs for this email to prevent clutter
-    await pool.query('DELETE FROM email_otps WHERE email = $1', [cleanEmail]);
-
-    // Insert new OTP
-    await pool.query(
-      'INSERT INTO email_otps (email, otp, expires_at) VALUES ($1, $2, $3)',
-      [cleanEmail, otp, expiresAt]
-    );
-
-    // Send Email
-    await transporter.sendMail({
-      from: `"EventFlow Verification" <${process.env.GMAIL_USER}>`,
-      to: cleanEmail,
-      subject: "Your EventFlow Registration Verification Code",
-      html: `
-        <div style="font-family: Arial; text-align: center; background: #111; padding: 30px; color: white;">
-          <h1 style="color:#FFD700;">Verification Code</h1>
-          <p style="font-size: 18px; color: #ddd;">Use the following 6-digit code to complete your event registration.</p>
-          <div style="font-size: 32px; font-weight: bold; letter-spacing: 5px; margin: 20px 0; padding: 15px; background: #222; border-radius: 10px; color: #00f2fe;">
-            ${otp}
-          </div>
-          <p style="color: #888;">This code will expire in 10 minutes.</p>
-        </div>
-      `
+app.post(
+  '/api/send-otp',
+  (req, res, next) => {
+    upload.single('payment_proof')(req, res, (err) => {
+      // Ignore multer errors for send-otp if no file provided
+      next();
     });
+  },
+  async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
 
-    res.json({ success: true, message: 'OTP sent successfully' });
-  } catch (error) {
-    console.error('SEND OTP ERROR:', error);
-    res.status(500).json({ success: false, message: 'Failed to send OTP' });
+      const cleanEmail = email.toLowerCase().trim();
+      const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit OTP
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      // Delete existing OTPs for this email to prevent clutter
+      await pool.query('DELETE FROM email_otps WHERE email = $1', [cleanEmail]);
+
+      // Insert new OTP
+      await pool.query(
+        'INSERT INTO email_otps (email, otp, expires_at) VALUES ($1, $2, $3)',
+        [cleanEmail, otp, expiresAt]
+      );
+
+      // PRE-REGISTRATION DRAFT AUTO-SAVE
+      const full_name = req.body.full_name || 'Incomplete Registration';
+      const phone_number = req.body.phone_number || '';
+      const emergency_contact_name = req.body.emergency_contact_name || '';
+      const emergency_contact = req.body.emergency_contact || '';
+      const blood_group = req.body.blood_group || '';
+      const gender = req.body.gender || '';
+      const club_affiliation = req.body.club_affiliation || '';
+      const event_id = req.body.event_id;
+      const total_amount = req.body.total_amount || 0;
+      const payment_proof = req.file ? req.file.path : null;
+
+      let tickets = [];
+      try {
+        tickets = req.body.tickets ? JSON.parse(req.body.tickets) : [req.body.ticket_type || 'solo'];
+      } catch (e) {
+        tickets = [req.body.ticket_type || 'solo'];
+      }
+
+      if (event_id) {
+        // Delete older draft for this email & event to avoid duplicate drafts
+        await pool.query(
+          `DELETE FROM registrations WHERE email = $1 AND event_id = $2 AND payment_status = 'draft'`,
+          [cleanEmail, event_id]
+        );
+
+        // Insert draft registration row
+        const qr_token = uuidv4();
+        await pool.query(
+          `
+          INSERT INTO registrations
+          (
+            full_name, email, phone_number, ticket_type, total_amount, allowed_entries,
+            used_entries, qr_token, payment_proof, payment_status, event_id,
+            emergency_contact_name, emergency_contact, blood_group, gender, club_affiliation
+          )
+          VALUES ($1, $2, $3, $4, $5, 1, 0, $6, $7, 'draft', $8, $9, $10, $11, $12, $13)
+          `,
+          [
+            full_name, cleanEmail, phone_number, tickets[0] || 'solo', total_amount,
+            qr_token, payment_proof, event_id, emergency_contact_name, emergency_contact,
+            blood_group, gender, club_affiliation
+          ]
+        );
+      }
+
+      // Send Email
+      await transporter.sendMail({
+        from: `"EventFlow Verification" <${process.env.GMAIL_USER}>`,
+        to: cleanEmail,
+        subject: "Your EventFlow Registration Verification Code",
+        html: `
+          <div style="font-family: Arial; text-align: center; background: #111; padding: 30px; color: white;">
+            <h1 style="color:#FFD700;">Verification Code</h1>
+            <p style="font-size: 18px; color: #ddd;">Use the following 6-digit code to complete your event registration.</p>
+            <div style="font-size: 32px; font-weight: bold; letter-spacing: 5px; margin: 20px 0; padding: 15px; background: #222; border-radius: 10px; color: #00f2fe;">
+              ${otp}
+            </div>
+            <p style="color: #888;">This code will expire in 10 minutes.</p>
+          </div>
+        `
+      });
+
+      res.json({ success: true, message: 'OTP sent successfully' });
+    } catch (error) {
+      console.error('SEND OTP ERROR:', error);
+      res.status(500).json({ success: false, message: 'Failed to send OTP' });
+    }
   }
-});
+);
 
 
 // =====================================
@@ -386,7 +441,7 @@ app.post(
 
       // RESTORE DUPLICATE EMAIL CHECK
       const existing = await pool.query(
-        `SELECT * FROM registrations WHERE email = $1 AND event_id = $2`,
+        `SELECT * FROM registrations WHERE email = $1 AND event_id = $2 AND payment_status != 'draft'`,
         [cleanEmail, event_id]
       );
 
@@ -398,7 +453,7 @@ app.post(
       }
 
       // CHECK TOTAL CAPACITY LIMIT (MAX 300 REGISTRATIONS)
-      const countRes = await pool.query('SELECT COUNT(*) FROM registrations WHERE event_id = $1', [event_id]);
+      const countRes = await pool.query("SELECT COUNT(*) FROM registrations WHERE event_id = $1 AND payment_status != 'draft'", [event_id]);
       const totalRegistrations = Number(countRes.rows[0].count) || 0;
       if (totalRegistrations >= 300) {
         return res.status(400).json({
@@ -451,6 +506,12 @@ app.post(
           [JSON.stringify(coupons), event_id]
         );
       }
+
+      // CLEANUP PREVIOUS DRAFT REGISTRATIONS FOR THIS USER
+      await pool.query(
+        `DELETE FROM registrations WHERE email = $1 AND event_id = $2 AND payment_status = 'draft'`,
+        [cleanEmail, event_id]
+      );
 
       // SAVE USERS IN PARALLEL
       const ticketPromises = tickets.map(async (ticket_type, index) => {

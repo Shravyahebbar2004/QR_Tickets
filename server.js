@@ -250,7 +250,7 @@ app.post(
 
       const cleanEmail = email.toLowerCase().trim();
       const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit OTP
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
 
       // Delete existing OTPs for this email to prevent clutter
       await pool.query('DELETE FROM email_otps WHERE email = $1', [cleanEmail]);

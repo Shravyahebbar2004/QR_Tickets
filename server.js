@@ -322,6 +322,7 @@ app.post(
       const emergency_contact = req.body.emergency_contact || '';
       const blood_group = req.body.blood_group || '';
       const gender = req.body.gender || '';
+      const club_affiliation = req.body.club_affiliation || 'General Public / Other';
 
       let tickets = [];
       try {
@@ -361,6 +362,8 @@ app.post(
         });
 
       }
+
+
 
 
       // OTP VERIFICATION
@@ -464,6 +467,7 @@ app.post(
         const p_blood_group = participant.blood_group || blood_group;
         const p_gender = participant.gender || gender;
         const p_tshirt_size = participant.tshirt_size || tshirt_size;
+        const p_club_affiliation = participant.club_affiliation || club_affiliation;
 
         const qr_token = uuidv4();
 
@@ -487,9 +491,10 @@ app.post(
       blood_group,
       gender,
       tshirt_size,
-      coupon_code
+      coupon_code,
+      club_affiliation
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
     RETURNING *
     `,
           [
@@ -509,7 +514,8 @@ app.post(
             p_blood_group,
             p_gender,
             p_tshirt_size,
-            appliedCouponCode
+            appliedCouponCode,
+            p_club_affiliation
           ]
         );
 

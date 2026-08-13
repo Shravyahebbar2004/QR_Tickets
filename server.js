@@ -692,22 +692,9 @@ app.post('/api/approve-payment/:id', async (req, res) => {
 
 
 
-    const attendee = user.rows[0];
-
-
-
-    // ALREADY APPROVED
-
-    if (attendee.payment_status === 'approved') {
-
-      return res.json({
-
-        success: true,
-
-        message: 'Already Approved'
-
-      });
-
+    // Ensure attendee is fetched and valid
+    if (!attendee) {
+      return res.status(404).json({ success: false, message: 'Attendee not found' });
     }
 
 

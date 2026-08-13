@@ -1596,100 +1596,93 @@ app.post('/api/verify-ticket', async (req, res) => {
 // =====================================
 
 app.post('/api/my-ticket', async (req, res) => {
-
   try {
-
-    const email = req.body.email;
-
-    const phone_number = req.body.phone_number;
-
-
-
-    const cleanPhone = phone_number
-
-      .replace(/\s/g, '')
-
-      .trim();
-
-
-
+    const rawEmail = (req.body.email || '').trim().toLowerCase();
+    const rawPhone = (req.body.phone_number || '').replace(/\D/g, '');
     const event_id = req.body.event_id;
 
-    const user = await pool.query(
-
-      `
-      SELECT
-      r.*,
-      e.title,
-      e.venue,
-      e.event_date,
-      e.organizer_name,
-      e.category,
-      e.custom_pricing,
-      e.whatsapp_link
-      FROM registrations r
-      JOIN events e
-      ON r.event_id = e.event_id
-      WHERE
-      LOWER(r.email) = LOWER($1)
-      AND
-      TRIM(r.phone_number) = $2
-      AND
-      r.event_id = $3
-      `,
-
-      [
-
-        email,
-
-        cleanPhone,
-
-        event_id
-
-      ]
-
-    );
-
-
-
-    if (user.rows.length === 0) {
-
-      return res.status(404).json({
-
+    if (!rawEmail && !rawPhone) {
+      return res.status(400).json({
         success: false,
-
-        message: 'User not found'
-
+        message: 'Please enter either your Email Address or Phone Number.'
       });
-
     }
 
+    const phoneDigits = rawPhone.length >= 10 ? rawPhone.slice(-10) : rawPhone;
 
+    let queryStr = `
+      SELECT
+        r.*,
+        e.title,
+        e.venue,
+        e.event_date,
+        e.organizer_name,
+        e.category,
+        e.custom_pricing,
+        e.whatsapp_link
+      FROM registrations r
+      JOIN events e ON r.event_id = e.event_id
+      WHERE 1=1
+    `;
+    const queryParams = [];
+
+    if (event_id) {
+      queryParams.push(event_id);
+      queryStr += ` AND r.event_id = $${queryParams.length}`;
+    }
+
+    const searchConditions = [];
+
+    if (rawEmail) {
+      queryParams.push(rawEmail);
+      searchConditions.push(`LOWER(TRIM(r.email)) = $${queryParams.length}`);
+    }
+
+    if (phoneDigits) {
+      queryParams.push(`%${phoneDigits}`);
+      searchConditions.push(`regexp_replace(r.phone_number, '\\D', '', 'g') LIKE $${queryParams.length}`);
+    }
+
+    if (searchConditions.length > 0) {
+      queryStr += ` AND (${searchConditions.join(' OR ')})`;
+    }
+
+    queryStr += ` ORDER BY r.created_at DESC`;
+
+    const user = await pool.query(queryStr, queryParams);
+
+    if (user.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Tickets not found for the provided Email or Phone Number. Please check for typos or contact support.'
+      });
+    }
+
+    // Ensure QR code exists for all returned tickets
+    const tickets = await Promise.all(
+      user.rows.map(async (ticket) => {
+        if (!ticket.qr_code && ticket.qr_token) {
+          try {
+            ticket.qr_code = await QRCode.toDataURL(ticket.qr_token);
+          } catch (e) {
+            console.error('Error generating QR on the fly:', e);
+          }
+        }
+        return ticket;
+      })
+    );
 
     res.json({
-
       success: true,
-
-      data: user.rows
-
+      data: tickets
     });
-
   } catch (error) {
-
-    console.log(error.message);
-
-
-
+    console.error('Error in /api/my-ticket:', error.message);
     res.status(500).json({
-
       success: false,
-
-      message: 'Server Error'
-
+      message: 'Server error retrieving tickets.'
     });
-
   }
-
 });
 
 // =====================================

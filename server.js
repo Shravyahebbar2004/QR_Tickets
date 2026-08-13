@@ -679,23 +679,13 @@ app.post('/api/approve-payment/:id', async (req, res) => {
 
 
     if (user.rows.length === 0) {
-
       return res.status(404).json({
-
         success: false,
-
         message: 'User not found'
-
       });
-
     }
 
-
-
-    // Ensure attendee is fetched and valid
-    if (!attendee) {
-      return res.status(404).json({ success: false, message: 'Attendee not found' });
-    }
+    const attendee = user.rows[0];
 
 
 

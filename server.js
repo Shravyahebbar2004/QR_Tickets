@@ -469,9 +469,10 @@ app.post(
       }
 
       // CHECK TOTAL CAPACITY LIMIT (MAX 300 REGISTRATIONS)
+      const is_admin_mode = req.body.is_admin_mode === 'true' || req.body.is_admin_mode === true;
       const countRes = await pool.query("SELECT COUNT(*) FROM registrations WHERE event_id = $1 AND payment_status != 'draft'", [event_id]);
       const totalRegistrations = Number(countRes.rows[0].count) || 0;
-      if (totalRegistrations >= 300) {
+      if (!is_admin_mode && totalRegistrations >= 300) {
         return res.status(400).json({
           success: false,
           message: 'Online registration for this event is closed as maximum capacity of 300 participants has been reached.'

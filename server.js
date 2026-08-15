@@ -1823,7 +1823,7 @@ app.get(
           SELECT *
           FROM registrations
           WHERE event_id = $1
-          ORDER BY created_at DESC
+          ORDER BY registration_id ASC
           `,
 
           [event_id]

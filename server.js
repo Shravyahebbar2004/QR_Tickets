@@ -1215,14 +1215,46 @@ app.post(
         }
       }
 
+      const getVal = (v) => {
+        if (Array.isArray(v)) {
+          v = v[v.length - 1];
+        }
+        if (v === undefined || v === null) return null;
+        if (typeof v === 'string') {
+          const trimmed = v.trim();
+          return trimmed === '' ? null : trimmed;
+        }
+        return v;
+      };
+
+      const getNumVal = (v) => {
+        const val = getVal(v);
+        if (val === null) return null;
+        const num = Number(val);
+        return isNaN(num) ? null : num;
+      };
+
+      const getJsonVal = (v, defaultVal = '[]') => {
+        if (Array.isArray(v) && v.length > 0 && typeof v[0] === 'string' && (v[0].startsWith('{') || v[0].startsWith('['))) {
+          v = v[v.length - 1];
+        }
+        if (!v) return defaultVal;
+        if (typeof v === 'object') {
+          return JSON.stringify(v);
+        }
+        if (typeof v === 'string') {
+          const trimmed = v.trim();
+          if (trimmed === '') return defaultVal;
+          return trimmed;
+        }
+        return defaultVal;
+      };
+
       // INSERT EVENT
-
       const newEvent = await pool.query(
-
         `
         INSERT INTO events
         (
-
           title,
           tagline,
           description,
@@ -1249,63 +1281,61 @@ app.post(
           coupons,
           whatsapp_link
         )
-
         VALUES
         (
           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25
         )
-
         RETURNING *
         `,
-
         [
-
-          title,
-          tagline,
-          description,
-          venue,
-          event_date,
-          category,
-          organizer_name,
+          getVal(title) || 'Untitled Event',
+          getVal(tagline),
+          getVal(description),
+          getVal(venue),
+          getVal(event_date),
+          getVal(category),
+          getVal(organizer_name),
           banner_url,
-          slab1_solo_price || null,
-          slab1_couple_price || null,
-          slab1_group_price || null,
-          slab1_deadline || null,
-          slab2_solo_price || null,
-          slab2_couple_price || null,
-          slab2_group_price || null,
-          slab2_deadline || null,
-          slab3_solo_price || null,
-          slab3_couple_price || null,
-          slab3_group_price || null,
-          slab3_deadline || null,
-          bulk_pass_price || null,
-          bulk_pass_entries || null,
-          custom_pricing || '[]',
-          coupons || '[]',
-          whatsapp_link || null
+          getNumVal(slab1_solo_price),
+          getNumVal(slab1_couple_price),
+          getNumVal(slab1_group_price),
+          getVal(slab1_deadline),
+          getNumVal(slab2_solo_price),
+          getNumVal(slab2_couple_price),
+          getNumVal(slab2_group_price),
+          getVal(slab2_deadline),
+          getNumVal(slab3_solo_price),
+          getNumVal(slab3_couple_price),
+          getNumVal(slab3_group_price),
+          getVal(slab3_deadline),
+          getNumVal(bulk_pass_price),
+          getNumVal(bulk_pass_entries),
+          getJsonVal(custom_pricing, '[]'),
+          getJsonVal(coupons, '[]'),
+          getVal(whatsapp_link)
         ]
-
       );
 
       // INSERT ADMIN ACCOUNT
-      if (organizer_username && organizer_password) {
+      const cleanAdminUser = getVal(organizer_username);
+      const cleanAdminPass = getVal(organizer_password);
+      if (cleanAdminUser && cleanAdminPass) {
         await pool.query(
           `
           INSERT INTO admins (username, password, event_id)
           VALUES ($1, $2, $3)
           `,
-          [organizer_username, organizer_password, newEvent.rows[0].event_id]
+          [cleanAdminUser, cleanAdminPass, newEvent.rows[0].event_id]
         );
       }
 
       // INSERT SCANNER ACCOUNT
-      if (scanner_username && scanner_password) {
-        // Optional duplicate check for scanner username
+      const cleanScanUser = getVal(scanner_username);
+      const cleanScanPass = getVal(scanner_password);
+      if (cleanScanUser && cleanScanPass) {
         const existingScanner = await pool.query(
           `SELECT * FROM scanner_admins WHERE username = $1`,
-          [scanner_username]
+          [cleanScanUser]
         );
         if (existingScanner.rows.length === 0) {
           await pool.query(
@@ -1313,33 +1343,23 @@ app.post(
             INSERT INTO scanner_admins (username, password, event_id)
             VALUES ($1, $2, $3)
             `,
-            [scanner_username, scanner_password, newEvent.rows[0].event_id]
+            [cleanScanUser, cleanScanPass, newEvent.rows[0].event_id]
           );
         }
       }
 
       res.json({
-
         success: true,
-
-        event:
-
-          newEvent.rows[0]
-
+        event: newEvent.rows[0]
       });
 
     } catch (error) {
-
-      console.log(error.message);
-
+      console.error('CREATE EVENT ERROR:', error);
       res.status(500).json({
-
         success: false,
-
-        message: 'Event Creation Failed'
-
+        message: error.message || 'Event Creation Failed',
+        detail: error.detail || error.toString()
       });
-
     }
 
   }
@@ -1361,6 +1381,41 @@ app.put('/api/edit-event/:id', async (req, res) => {
       bulk_pass_price, bulk_pass_entries, custom_pricing, coupons, whatsapp_link
     } = req.body;
 
+    const getVal = (v) => {
+      if (Array.isArray(v)) {
+        v = v[v.length - 1];
+      }
+      if (v === undefined || v === null) return null;
+      if (typeof v === 'string') {
+        const trimmed = v.trim();
+        return trimmed === '' ? null : trimmed;
+      }
+      return v;
+    };
+
+    const getNumVal = (v) => {
+      const val = getVal(v);
+      if (val === null) return null;
+      const num = Number(val);
+      return isNaN(num) ? null : num;
+    };
+
+    const getJsonVal = (v, defaultVal = '[]') => {
+      if (Array.isArray(v) && v.length > 0 && typeof v[0] === 'string' && (v[0].startsWith('{') || v[0].startsWith('['))) {
+        v = v[v.length - 1];
+      }
+      if (!v) return defaultVal;
+      if (typeof v === 'object') {
+        return JSON.stringify(v);
+      }
+      if (typeof v === 'string') {
+        const trimmed = v.trim();
+        if (trimmed === '') return defaultVal;
+        return trimmed;
+      }
+      return defaultVal;
+    };
+
     const updatedEvent = await pool.query(
       `
       UPDATE events
@@ -1375,22 +1430,38 @@ app.put('/api/edit-event/:id', async (req, res) => {
       RETURNING *
       `,
       [
-        title, tagline, description, venue, event_date, category, organizer_name,
-        slab1_solo_price || null, slab1_couple_price || null, slab1_group_price || null, slab1_deadline || null,
-        slab2_solo_price || null, slab2_couple_price || null, slab2_group_price || null, slab2_deadline || null,
-        slab3_solo_price || null, slab3_couple_price || null, slab3_group_price || null, slab3_deadline || null,
-        bulk_pass_price || null, bulk_pass_entries || null,
+        getVal(title) || 'Untitled Event',
+        getVal(tagline),
+        getVal(description),
+        getVal(venue),
+        getVal(event_date),
+        getVal(category),
+        getVal(organizer_name),
+        getNumVal(slab1_solo_price),
+        getNumVal(slab1_couple_price),
+        getNumVal(slab1_group_price),
+        getVal(slab1_deadline),
+        getNumVal(slab2_solo_price),
+        getNumVal(slab2_couple_price),
+        getNumVal(slab2_group_price),
+        getVal(slab2_deadline),
+        getNumVal(slab3_solo_price),
+        getNumVal(slab3_couple_price),
+        getNumVal(slab3_group_price),
+        getVal(slab3_deadline),
+        getNumVal(bulk_pass_price),
+        getNumVal(bulk_pass_entries),
         event_id,
-        custom_pricing || '[]',
-        whatsapp_link || null,
-        coupons || '[]'
+        getJsonVal(custom_pricing, '[]'),
+        getVal(whatsapp_link),
+        getJsonVal(coupons, '[]')
       ]
     );
 
     res.json({ success: true, event: updatedEvent.rows[0] });
   } catch (error) {
-    console.log(error.message);
-    res.status(500).json({ success: false, message: 'Event Update Failed' });
+    console.error('UPDATE EVENT ERROR:', error);
+    res.status(500).json({ success: false, message: error.message || 'Event Update Failed' });
   }
 });
 

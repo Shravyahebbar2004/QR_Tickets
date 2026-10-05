@@ -172,10 +172,13 @@ app.get('/api/event/:id', async (req, res) => {
 
     }
 
-    const regCount = await pool.query("SELECT COUNT(*) FROM registrations WHERE event_id = $1 AND payment_status != 'draft'", [id]);
+    const regCount = await pool.query(
+      "SELECT COALESCE(SUM(CASE WHEN allowed_entries > 0 THEN allowed_entries ELSE 1 END), 0) as count FROM registrations WHERE event_id = $1 AND payment_status != 'draft'",
+      [id]
+    );
     const eventData = {
       ...event.rows[0],
-      total_registrations: Number(regCount.rows[0].count) || 0
+      total_registrations: Number(regCount.rows[0]?.count) || 0
     };
 
     res.json({
@@ -313,10 +316,11 @@ app.post(
             used_entries, qr_token, payment_proof, payment_status, event_id,
             emergency_contact_name, emergency_contact, blood_group, gender, club_affiliation
           )
-          VALUES ($1, $2, $3, $4, $5, 1, 0, $6, $7, 'draft', $8, $9, $10, $11, $12, $13)
+          VALUES ($1, $2, $3, $4, $5, $6, 0, $7, $8, 'draft', $9, $10, $11, $12, $13, $14)
           `,
           [
             full_name, cleanEmail, phone_number, tickets[0] || 'solo', total_amount,
+            Number(req.body.allowed_entries) || (tickets.length > 0 ? tickets.length : 1),
             qr_token, payment_proof, event_id, emergency_contact_name, emergency_contact,
             blood_group, gender, club_affiliation
           ]
@@ -537,6 +541,7 @@ app.post(
         if (ticket_type === 'couple') current_allowed = 2;
         else if (ticket_type === 'group') current_allowed = 4; // GROUP IS 4 NOW!
         else if (ticket_type === 'bulk') current_allowed = bulk_entries;
+        else if (req.body.allowed_entries && tickets.length === 1) current_allowed = Number(req.body.allowed_entries);
         
         const tshirt_size = req.body.tshirt_size || '';
         // Grab participant specific details if they exist (Marathon)

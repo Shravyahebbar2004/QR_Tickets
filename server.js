@@ -283,6 +283,7 @@ app.post(
       // PRE-REGISTRATION DRAFT AUTO-SAVE
       const full_name = req.body.full_name || 'Incomplete Registration';
       const phone_number = req.body.phone_number || '';
+      const utr = req.body.utr || '';
       const emergency_contact_name = req.body.emergency_contact_name || '';
       const emergency_contact = req.body.emergency_contact || '';
       const blood_group = req.body.blood_group || '';
@@ -314,15 +315,15 @@ app.post(
           (
             full_name, email, phone_number, ticket_type, total_amount, allowed_entries,
             used_entries, qr_token, payment_proof, payment_status, event_id,
-            emergency_contact_name, emergency_contact, blood_group, gender, club_affiliation
+            emergency_contact_name, emergency_contact, blood_group, gender, club_affiliation, utr
           )
-          VALUES ($1, $2, $3, $4, $5, $6, 0, $7, $8, 'draft', $9, $10, $11, $12, $13, $14)
+          VALUES ($1, $2, $3, $4, $5, $6, 0, $7, $8, 'draft', $9, $10, $11, $12, $13, $14, $15)
           `,
           [
             full_name, cleanEmail, phone_number, tickets[0] || 'solo', total_amount,
             Number(req.body.allowed_entries) || (tickets.length > 0 ? tickets.length : 1),
             qr_token, payment_proof, event_id, emergency_contact_name, emergency_contact,
-            blood_group, gender, club_affiliation
+            blood_group, gender, club_affiliation, utr
           ]
         );
       }
@@ -393,6 +394,7 @@ app.post(
         email.toLowerCase().trim();
 
       const phone_number = req.body.phone_number;
+      const utr = req.body.utr || '';
       const emergency_contact_name = req.body.emergency_contact_name || '';
       const emergency_contact = req.body.emergency_contact || '';
       const blood_group = req.body.blood_group || '';
@@ -575,9 +577,10 @@ app.post(
       gender,
       tshirt_size,
       coupon_code,
-      club_affiliation
+      club_affiliation,
+      utr
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
     RETURNING *
     `,
           [
@@ -598,7 +601,8 @@ app.post(
             p_gender,
             p_tshirt_size,
             appliedCouponCode,
-            p_club_affiliation
+            p_club_affiliation,
+            utr
           ]
         );
 

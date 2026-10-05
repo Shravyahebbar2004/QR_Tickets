@@ -835,7 +835,7 @@ app.post('/api/approve-payment/:id', async (req, res) => {
       ${generated_bib_number ? `<p style="margin: 8px 0; font-size: 15px;"><strong style="color: #c4b5fd;">Bib Number:</strong> #${generated_bib_number}</p>` : ''}
       ${wave_info}
       <p style="margin: 8px 0; font-size: 15px;"><strong style="color: #c4b5fd;">Venue:</strong> ${attendee.venue}</p>
-      <p style="margin: 8px 0; font-size: 15px;"><strong style="color: #c4b5fd;">Date:</strong> ${new Date(attendee.event_date).toLocaleDateString()}</p>
+      <p style="margin: 8px 0; font-size: 15px;"><strong style="color: #c4b5fd;">Date & Time:</strong> ${new Date(attendee.event_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' })} at ${new Date(attendee.event_date).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true })} IST</p>
     </div>
 
     <div style="background:white; padding:15px; border-radius:15px; display:inline-block; margin-top:5px;">
@@ -1238,6 +1238,15 @@ app.post(
         return isNaN(num) ? null : num;
       };
 
+      const getISTDate = (v) => {
+        const val = getVal(v);
+        if (!val) return null;
+        if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?$/.test(val)) {
+          return val.replace(' ', 'T') + (val.length === 16 ? ':00+05:30' : '+05:30');
+        }
+        return val;
+      };
+
       const getJsonVal = (v, defaultVal = '[]') => {
         if (Array.isArray(v) && v.length > 0 && typeof v[0] === 'string' && (v[0].startsWith('{') || v[0].startsWith('['))) {
           v = v[v.length - 1];
@@ -1296,22 +1305,22 @@ app.post(
           getVal(tagline),
           getVal(description),
           getVal(venue),
-          getVal(event_date),
+          getISTDate(event_date),
           getVal(category),
           getVal(organizer_name),
           banner_url,
           getNumVal(slab1_solo_price),
           getNumVal(slab1_couple_price),
           getNumVal(slab1_group_price),
-          getVal(slab1_deadline),
+          getISTDate(slab1_deadline),
           getNumVal(slab2_solo_price),
           getNumVal(slab2_couple_price),
           getNumVal(slab2_group_price),
-          getVal(slab2_deadline),
+          getISTDate(slab2_deadline),
           getNumVal(slab3_solo_price),
           getNumVal(slab3_couple_price),
           getNumVal(slab3_group_price),
-          getVal(slab3_deadline),
+          getISTDate(slab3_deadline),
           getNumVal(bulk_pass_price),
           getNumVal(bulk_pass_entries),
           getJsonVal(custom_pricing, '[]'),
@@ -1404,6 +1413,15 @@ app.put('/api/edit-event/:id', async (req, res) => {
       return isNaN(num) ? null : num;
     };
 
+    const getISTDate = (v) => {
+      const val = getVal(v);
+      if (!val) return null;
+      if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?$/.test(val)) {
+        return val.replace(' ', 'T') + (val.length === 16 ? ':00+05:30' : '+05:30');
+      }
+      return val;
+    };
+
     const getJsonVal = (v, defaultVal = '[]') => {
       if (Array.isArray(v) && v.length > 0 && typeof v[0] === 'string' && (v[0].startsWith('{') || v[0].startsWith('['))) {
         v = v[v.length - 1];
@@ -1438,21 +1456,21 @@ app.put('/api/edit-event/:id', async (req, res) => {
         getVal(tagline),
         getVal(description),
         getVal(venue),
-        getVal(event_date),
+        getISTDate(event_date),
         getVal(category),
         getVal(organizer_name),
         getNumVal(slab1_solo_price),
         getNumVal(slab1_couple_price),
         getNumVal(slab1_group_price),
-        getVal(slab1_deadline),
+        getISTDate(slab1_deadline),
         getNumVal(slab2_solo_price),
         getNumVal(slab2_couple_price),
         getNumVal(slab2_group_price),
-        getVal(slab2_deadline),
+        getISTDate(slab2_deadline),
         getNumVal(slab3_solo_price),
         getNumVal(slab3_couple_price),
         getNumVal(slab3_group_price),
-        getVal(slab3_deadline),
+        getISTDate(slab3_deadline),
         getNumVal(bulk_pass_price),
         getNumVal(bulk_pass_entries),
         event_id,

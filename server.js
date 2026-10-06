@@ -924,6 +924,40 @@ app.get('/api/registrations', async (req, res) => {
 
 
 // =====================================
+// JWT AUTH MIDDLEWARES
+// =====================================
+
+const verifyAdminToken = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, message: 'Unauthorized: No token provided' });
+  }
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey');
+    req.admin = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ success: false, message: 'Unauthorized: Invalid token' });
+  }
+};
+
+const verifyScannerToken = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, message: 'Unauthorized: No token provided' });
+  }
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey');
+    req.scanner = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ success: false, message: 'Unauthorized: Invalid token' });
+  }
+};
+
+// =====================================
 // ADMIN LOGIN
 // =====================================
 
@@ -1761,7 +1795,7 @@ app.post('/api/my-ticket', async (req, res) => {
 // ANALYTICS API
 // =====================================
 
-app.get('/api/analytics', async (req, res) => {
+app.get('/api/analytics', verifyAdminToken, async (req, res) => {
 
   try {
 
@@ -1902,6 +1936,8 @@ app.get('/api/signup', (req, res) => {
 app.get(
 
   '/api/admin/:id',
+
+  verifyAdminToken,
 
   async (req, res) => {
 

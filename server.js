@@ -1600,15 +1600,11 @@ app.post('/api/verify-ticket', async (req, res) => {
     );
 
     if (updateResult.rowCount === 0) {
-
       return res.json({
-
         success: false,
-
-        message: 'Entry Limit Reached'
-
+        message: `Entry Limit Reached (${attendee.used_entries} / ${attendee.allowed_entries} entries already used)`,
+        attendee: attendee
       });
-
     }
 
     const updatedAttendee = updateResult.rows[0];

@@ -1445,7 +1445,16 @@ app.post(
 // EDIT EVENT API
 // =====================================
 
-app.put('/api/edit-event/:id', async (req, res) => {
+const handleEditEventMulter = (req, res, next) => {
+  upload.single('banner')(req, res, (err) => {
+    if (err) {
+      console.error('MULTER EDIT ERROR:', err);
+    }
+    next();
+  });
+};
+
+const handleEditEvent = async (req, res) => {
   try {
     const event_id = req.params.id;
     const {
@@ -1455,6 +1464,13 @@ app.put('/api/edit-event/:id', async (req, res) => {
       slab3_solo_price, slab3_couple_price, slab3_group_price, slab3_deadline,
       bulk_pass_price, bulk_pass_entries, custom_pricing, coupons, whatsapp_link
     } = req.body;
+
+    let newBannerUrl = req.file ? req.file.path : (req.body.banner_url || null);
+
+    if (!newBannerUrl) {
+      const existing = await pool.query('SELECT banner_url FROM events WHERE event_id = $1', [event_id]);
+      newBannerUrl = existing.rows[0]?.banner_url || null;
+    }
 
     const getVal = (v) => {
       if (Array.isArray(v)) {
@@ -1509,7 +1525,8 @@ app.put('/api/edit-event/:id', async (req, res) => {
         slab1_solo_price = $8, slab1_couple_price = $9, slab1_group_price = $10, slab1_deadline = $11,
         slab2_solo_price = $12, slab2_couple_price = $13, slab2_group_price = $14, slab2_deadline = $15,
         slab3_solo_price = $16, slab3_couple_price = $17, slab3_group_price = $18, slab3_deadline = $19,
-        bulk_pass_price = $20, bulk_pass_entries = $21, custom_pricing = $23, coupons = $25, whatsapp_link = $24
+        bulk_pass_price = $20, bulk_pass_entries = $21, custom_pricing = $23, coupons = $25, whatsapp_link = $24,
+        banner_url = $26
       WHERE event_id = $22
       RETURNING *
       `,
@@ -1538,7 +1555,8 @@ app.put('/api/edit-event/:id', async (req, res) => {
         event_id,
         getJsonVal(custom_pricing, '[]'),
         getVal(whatsapp_link),
-        getJsonVal(coupons, '[]')
+        getJsonVal(coupons, '[]'),
+        newBannerUrl
       ]
     );
 
@@ -1547,7 +1565,10 @@ app.put('/api/edit-event/:id', async (req, res) => {
     console.error('UPDATE EVENT ERROR:', error);
     res.status(500).json({ success: false, message: error.message || 'Event Update Failed' });
   }
-});
+};
+
+app.put('/api/edit-event/:id', handleEditEventMulter, handleEditEvent);
+app.post('/api/edit-event/:id', handleEditEventMulter, handleEditEvent);
 
 
 // =====================================

@@ -353,6 +353,34 @@ app.post(
   }
 );
 
+// =====================================
+// VERIFY OTP (INLINE)
+// =====================================
+
+app.post('/api/verify-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ success: false, message: 'Email and OTP are required' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const otpCheck = await pool.query(
+      'SELECT * FROM email_otps WHERE email = $1 AND otp = $2 AND expires_at > NOW()',
+      [cleanEmail, otp.trim()]
+    );
+
+    if (otpCheck.rows.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired OTP. Please try again.' });
+    }
+
+    res.json({ success: true, message: 'OTP verified successfully' });
+  } catch (error) {
+    console.error('VERIFY OTP ERROR:', error);
+    res.status(500).json({ success: false, message: 'Failed to verify OTP' });
+  }
+});
+
 
 // =====================================
 // REGISTER USER

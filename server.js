@@ -986,6 +986,40 @@ const verifyScannerToken = (req, res, next) => {
 };
 
 // =====================================
+// REJECT REGISTRATION (DRAFT ONLY)
+// =====================================
+app.post('/api/reject-registration/:id', verifyAdminToken, async (req, res) => {
+  try {
+    const id = req.params.id;
+    await pool.query(
+      `UPDATE registrations SET payment_status = 'rejected' WHERE registration_id = $1`,
+      [id]
+    );
+    res.json({ success: true, message: 'Registration marked as rejected' });
+  } catch (error) {
+    console.error('Reject Registration Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to reject registration' });
+  }
+});
+
+// =====================================
+// RECOVER REGISTRATION (BACK TO DRAFT)
+// =====================================
+app.post('/api/recover-registration/:id', verifyAdminToken, async (req, res) => {
+  try {
+    const id = req.params.id;
+    await pool.query(
+      `UPDATE registrations SET payment_status = 'draft' WHERE registration_id = $1`,
+      [id]
+    );
+    res.json({ success: true, message: 'Registration recovered to incomplete drafts' });
+  } catch (error) {
+    console.error('Recover Registration Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to recover registration' });
+  }
+});
+
+// =====================================
 // ADMIN LOGIN
 // =====================================
 

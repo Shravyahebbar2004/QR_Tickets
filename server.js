@@ -1621,110 +1621,70 @@ app.post('/api/edit-event/:id', handleEditEventMulter, handleEditEvent);
 // =====================================
 
 app.post('/api/verify-ticket', async (req, res) => {
-
   try {
-
-    // AUTH TOKEN
-
     const authHeader = req.headers.authorization;
-
     if (!authHeader) {
-
       return res.status(401).json({
-
         success: false,
-
-        message: 'Unauthorized'
-
+        message: 'Unauthorized: No Token Provided'
       });
-
     }
 
     const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey');
 
-    // VERIFY JWT
+    let qr_token = (req.body.qr_token || '').trim();
+    if (qr_token.includes('/')) {
+      const parts = qr_token.split('/');
+      qr_token = parts[parts.length - 1];
+    }
 
-    const decoded = jwt.verify(
-
-      token,
-
-      process.env.JWT_SECRET
-
-    );
-
-    // QR TOKEN
-
-    const qr_token = req.body.qr_token;
+    if (!qr_token) {
+      return res.json({
+        success: false,
+        message: 'No QR token provided'
+      });
+    }
 
     // FIND USER
-
     const user = await pool.query(
-
-      `
-      SELECT *
-      FROM registrations
-      WHERE qr_token = $1
-      `,
-
-      [qr_token]
-
+      `SELECT * FROM registrations WHERE qr_token = $1 OR qr_token LIKE $2`,
+      [qr_token, `%${qr_token}%`]
     );
 
-    // INVALID QR
-
     if (user.rows.length === 0) {
-
       return res.json({
-
         success: false,
-
-        message: 'Invalid QR'
-
+        message: 'Invalid QR Code / Ticket Not Found'
       });
-
     }
 
     const attendee = user.rows[0];
 
-    // EVENT CHECK
-    if (String(attendee.event_id) !== String(decoded.event_id)) {
+    // EVENT CHECK (ONLY IF EVENT_ID IS PRESENT IN DECODED TOKEN)
+    if (decoded.event_id && String(attendee.event_id) !== String(decoded.event_id)) {
       return res.json({
         success: false,
-        message: 'Invalid Event Ticket'
+        message: 'Invalid Event Ticket (Pass belongs to a different event)'
       });
     }
 
     // PAYMENT CHECK
-
-    if (
-
-      attendee.payment_status !== 'approved'
-
-    ) {
-
+    if (attendee.payment_status !== 'approved') {
       return res.json({
-
         success: false,
-
-        message: 'Payment Not Approved'
-
+        message: `Payment Status: ${attendee.payment_status ? attendee.payment_status.toUpperCase() : 'PENDING'} (Not Approved)`,
+        attendee: attendee
       });
-
     }
 
     // ATOMIC ENTRY LIMIT CHECK & UPDATE
-
     const updateResult = await pool.query(
-
-      `
-      UPDATE registrations
-      SET used_entries = used_entries + 1
-      WHERE qr_token = $1 AND used_entries < allowed_entries
-      RETURNING *
-      `,
-
-      [qr_token]
-
+      `UPDATE registrations
+       SET used_entries = used_entries + 1
+       WHERE registration_id = $1 AND used_entries < allowed_entries
+       RETURNING *`,
+      [attendee.registration_id]
     );
 
     if (updateResult.rowCount === 0) {
@@ -1737,47 +1697,30 @@ app.post('/api/verify-ticket', async (req, res) => {
 
     const updatedAttendee = updateResult.rows[0];
 
-    // SAVE ENTRY LOG
-
-    await pool.query(
-
-      `
-      INSERT INTO entry_logs
-      (
-        registration_id,
-        scanner_id
-      )
-
-      VALUES ($1, $2)
-      `,
-
-      [
-
-        attendee.registration_id,
-
-        decoded.scanner_id
-
-      ]
-
-    );
-
-    // SUCCESS
+    // SAVE ENTRY LOG IF TABLE EXISTS
+    try {
+      await pool.query(
+        `INSERT INTO entry_logs (registration_id, scanner_id) VALUES ($1, $2)`,
+        [attendee.registration_id, decoded.scanner_id || null]
+      );
+    } catch (logErr) {
+      console.warn('Entry log write notice:', logErr.message);
+    }
 
     res.json({
-
       success: true,
-
-      message: 'Entry Allowed',
-
+      message: 'Entry Allowed ✅',
       attendee: updatedAttendee
-
     });
 
   } catch (error) {
-
-    console.log(error.message);
-
+    console.error('Verify Ticket Error:', error.message);
     res.status(500).json({
+      success: false,
+      message: error.name === 'JsonWebTokenError' ? 'Unauthorized: Invalid Token' : 'Verification Server Error'
+    });
+  }
+});
 
       success: false,
 

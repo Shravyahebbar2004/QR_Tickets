@@ -1806,16 +1806,26 @@ app.post('/api/my-ticket', async (req, res) => {
 
     const user = await pool.query(queryStr, queryParams);
 
-    if (user.rows.length === 0) {
+    const approvedRows = user.rows.filter(r => r.payment_status === 'approved');
+    const pendingRows = user.rows.filter(r => r.payment_status === 'pending');
+
+    if (approvedRows.length === 0) {
+      if (pendingRows.length > 0) {
+        return res.status(403).json({
+          success: false,
+          is_pending: true,
+          message: 'Your registration has been received and payment approval is PENDING. Tickets will be visible here once an admin approves your payment!'
+        });
+      }
       return res.status(404).json({
         success: false,
-        message: 'Tickets not found for the provided Email or Phone Number. Please check for typos or contact support.'
+        message: 'No approved tickets found for the entered details. Please check back after admin approval.'
       });
     }
 
-    // Ensure QR code exists for all returned tickets
+    // Ensure QR code exists for all approved tickets
     const tickets = await Promise.all(
-      user.rows.map(async (ticket) => {
+      approvedRows.map(async (ticket) => {
         if (!ticket.qr_code && ticket.qr_token) {
           try {
             ticket.qr_code = await QRCode.toDataURL(ticket.qr_token);

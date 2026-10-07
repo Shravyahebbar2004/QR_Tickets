@@ -1722,16 +1722,6 @@ app.post('/api/verify-ticket', async (req, res) => {
   }
 });
 
-      success: false,
-
-      message: 'Verification Failed'
-
-    });
-
-  }
-
-});
-
 
 
 // =====================================

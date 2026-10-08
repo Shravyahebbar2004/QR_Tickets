@@ -1732,6 +1732,63 @@ app.post('/api/verify-ticket', async (req, res) => {
   }
 });
 
+// =====================================
+// INDIVIDUAL PARTICIPANT CHECK-IN & BLOCK API
+// =====================================
+
+app.post('/api/checkin-participant', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ success: false, message: 'Unauthorized: No Token Provided' });
+    }
+
+    const { registration_id, participant_name } = req.body;
+    if (!registration_id || !participant_name) {
+      return res.status(400).json({ success: false, message: 'Missing registration_id or participant_name' });
+    }
+
+    const user = await pool.query(`SELECT * FROM registrations WHERE registration_id = $1`, [registration_id]);
+    if (user.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Registration not found' });
+    }
+
+    const attendee = user.rows[0];
+    let currentCheckedIn = [];
+    try {
+      currentCheckedIn = typeof attendee.checked_in_names === 'string'
+        ? JSON.parse(attendee.checked_in_names || '[]')
+        : (attendee.checked_in_names || []);
+    } catch (e) {
+      currentCheckedIn = [];
+    }
+
+    const cleanName = participant_name.trim();
+
+    if (!currentCheckedIn.includes(cleanName)) {
+      currentCheckedIn.push(cleanName);
+    }
+
+    const updateRes = await pool.query(
+      `UPDATE registrations
+       SET checked_in_names = $1
+       WHERE registration_id = $2
+       RETURNING *`,
+      [JSON.stringify(currentCheckedIn), registration_id]
+    );
+
+    res.json({
+      success: true,
+      message: `Checked in ${cleanName} ✅`,
+      checked_in_names: currentCheckedIn,
+      attendee: updateRes.rows[0]
+    });
+  } catch (error) {
+    console.error('Checkin Participant Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update participant check-in status' });
+  }
+});
+
 
 
 // =====================================

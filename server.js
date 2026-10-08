@@ -1648,7 +1648,7 @@ app.post('/api/verify-ticket', async (req, res) => {
 
     // FIND USER
     const user = await pool.query(
-      `SELECT * FROM registrations WHERE qr_token = $1 OR qr_token LIKE $2`,
+      `SELECT * FROM registrations WHERE qr_token::text = $1 OR qr_token::text LIKE $2`,
       [qr_token, `%${qr_token}%`]
     );
 

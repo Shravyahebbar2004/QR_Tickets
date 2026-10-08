@@ -855,6 +855,16 @@ app.post('/api/approve-payment/:id', async (req, res) => {
     <p style="color: #fde68a; font-size: 18px; font-weight: bold; margin: 25px 0 15px 0; line-height: 1.4;">
       Thank you for registering for ${attendee.title}! 🎉
     </p>
+
+    <!-- BOLD IMPORTANT NOTE BANNER -->
+    <div style="background: rgba(239, 68, 68, 0.15); border: 2px solid #ef4444; border-radius: 16px; padding: 16px 20px; margin: 20px 0; text-align: center; box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);">
+      <p style="margin: 0; color: #ef4444; font-size: 15px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase;">
+        ⚠️ <strong style="color: #fca5a5;">NOTE: PLEASE STAR ⭐️ OR PIN 📌 THIS EMAIL!</strong>
+      </p>
+      <p style="margin: 6px 0 0 0; color: #ffffff; font-size: 13px; font-weight: bold; line-height: 1.5;">
+        You MUST show your QR code at the entrance on the date of the event. Entry will not be permitted without your QR pass.
+      </p>
+    </div>
     
     ${attendee.whatsapp_link ? `
     <a href="${attendee.whatsapp_link}" target="_blank" style="display: inline-block; background: linear-gradient(90deg, #25D366, #128C7E); color: white; padding: 12px 28px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 15px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(37,211,102,0.3);">

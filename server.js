@@ -2167,6 +2167,113 @@ app.post('/api/platform/login', async (req, res) => {
 });
 
 // =====================================
+// EVENT QUERIES & QUESTIONS (Q&A)
+// =====================================
+
+// Public: Get answered and pinned queries for an event
+app.get('/api/event/:id/queries', async (req, res) => {
+  try {
+    const event_id = req.params.id;
+    const queries = await pool.query(
+      `SELECT query_id, event_id, user_name, question, answer, answered_by, answered_at, is_pinned, created_at, status
+       FROM event_queries
+       WHERE event_id = $1 AND (status = 'ANSWERED' OR is_pinned = true)
+       ORDER BY is_pinned DESC, COALESCE(answered_at, created_at) DESC`,
+      [event_id]
+    );
+    res.json({ success: true, queries: queries.rows });
+  } catch (err) {
+    console.error('Error fetching event queries:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch event queries' });
+  }
+});
+
+// Public: Submit a new user query
+app.post('/api/event/:id/queries', async (req, res) => {
+  try {
+    const event_id = req.params.id;
+    const { user_name, user_contact, question } = req.body;
+
+    if (!user_name || !user_name.trim() || !question || !question.trim()) {
+      return res.status(400).json({ success: false, message: 'Your name and question are required.' });
+    }
+
+    const newQuery = await pool.query(
+      `INSERT INTO event_queries (event_id, user_name, user_contact, question, status)
+       VALUES ($1, $2, $3, $4, 'PENDING')
+       RETURNING *`,
+      [event_id, user_name.trim(), (user_contact || '').trim(), question.trim()]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Your query has been submitted successfully! Organizers will answer it shortly.',
+      query: newQuery.rows[0]
+    });
+  } catch (err) {
+    console.error('Error submitting event query:', err);
+    res.status(500).json({ success: false, message: 'Failed to submit query.' });
+  }
+});
+
+// Admin: Get all queries for an event (including pending)
+app.get('/api/admin/:id/queries', verifyAdminToken, async (req, res) => {
+  try {
+    const event_id = req.params.id;
+    const queries = await pool.query(
+      `SELECT * FROM event_queries WHERE event_id = $1 ORDER BY is_pinned DESC, created_at DESC`,
+      [event_id]
+    );
+    res.json({ success: true, queries: queries.rows });
+  } catch (err) {
+    console.error('Error fetching admin queries:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch queries' });
+  }
+});
+
+// Admin: Answer / reply to an attendee query
+app.post('/api/admin/queries/:queryId/answer', verifyAdminToken, async (req, res) => {
+  try {
+    const queryId = req.params.queryId;
+    const { answer, answered_by } = req.body;
+
+    if (!answer || !answer.trim()) {
+      return res.status(400).json({ success: false, message: 'Answer text is required.' });
+    }
+
+    const responder = answered_by || 'Event Organizer';
+    const updated = await pool.query(
+      `UPDATE event_queries
+       SET answer = $1, answered_by = $2, answered_at = NOW(), status = 'ANSWERED'
+       WHERE query_id = $3
+       RETURNING *`,
+      [answer.trim(), responder.trim(), queryId]
+    );
+
+    if (updated.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'Query not found' });
+    }
+
+    res.json({ success: true, message: 'Query answered successfully!', query: updated.rows[0] });
+  } catch (err) {
+    console.error('Error answering query:', err);
+    res.status(500).json({ success: false, message: 'Failed to answer query' });
+  }
+});
+
+// Admin: Delete a query
+app.delete('/api/admin/queries/:queryId', verifyAdminToken, async (req, res) => {
+  try {
+    const queryId = req.params.queryId;
+    await pool.query('DELETE FROM event_queries WHERE query_id = $1', [queryId]);
+    res.json({ success: true, message: 'Query deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting query:', err);
+    res.status(500).json({ success: false, message: 'Failed to delete query' });
+  }
+});
+
+// =====================================
 // SERVER
 // =====================================
 

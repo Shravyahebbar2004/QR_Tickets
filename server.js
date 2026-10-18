@@ -2050,6 +2050,12 @@ app.get(
       const event_id =
         req.params.id;
 
+      const eventRes =
+        await pool.query(
+          'SELECT * FROM events WHERE event_id = $1',
+          [event_id]
+        );
+
       const registrations =
         await pool.query(
 
@@ -2067,6 +2073,8 @@ app.get(
       res.json({
 
         success: true,
+
+        event: eventRes.rows[0] || null,
 
         registrations:
 

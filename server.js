@@ -1007,9 +1007,10 @@ const verifyScannerToken = (req, res, next) => {
 };
 
 // =====================================
-// REJECT REGISTRATION (DRAFT ONLY)
 // =====================================
-app.post('/api/reject-registration/:id', verifyAdminToken, async (req, res) => {
+// REJECT REGISTRATION
+// =====================================
+app.post('/api/reject-registration/:id', async (req, res) => {
   try {
     const id = req.params.id;
     await pool.query(
@@ -1024,9 +1025,9 @@ app.post('/api/reject-registration/:id', verifyAdminToken, async (req, res) => {
 });
 
 // =====================================
-// RECOVER REGISTRATION (BACK TO DRAFT)
+// RECOVER REGISTRATION
 // =====================================
-app.post('/api/recover-registration/:id', verifyAdminToken, async (req, res) => {
+app.post('/api/recover-registration/:id', async (req, res) => {
   try {
     const id = req.params.id;
     await pool.query(
@@ -1048,7 +1049,7 @@ app.post('/api/recover-registration/:id', verifyAdminToken, async (req, res) => 
 // =====================================
 // SET REGISTRATION TO PENDING
 // =====================================
-app.post('/api/set-pending-registration/:id', verifyAdminToken, async (req, res) => {
+app.post('/api/set-pending-registration/:id', async (req, res) => {
   try {
     const id = req.params.id;
     await pool.query(

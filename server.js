@@ -1030,13 +1030,35 @@ app.post('/api/recover-registration/:id', verifyAdminToken, async (req, res) => 
   try {
     const id = req.params.id;
     await pool.query(
-      `UPDATE registrations SET payment_status = 'draft' WHERE registration_id = $1`,
+      `UPDATE registrations 
+       SET payment_status = CASE 
+         WHEN (utr IS NOT NULL AND length(trim(utr)) > 0) OR (payment_proof IS NOT NULL AND length(trim(payment_proof)) > 0) THEN 'pending' 
+         ELSE 'draft' 
+       END 
+       WHERE registration_id = $1`,
       [id]
     );
-    res.json({ success: true, message: 'Registration recovered to incomplete drafts' });
+    res.json({ success: true, message: 'Registration recovered successfully' });
   } catch (error) {
     console.error('Recover Registration Error:', error);
     res.status(500).json({ success: false, message: 'Failed to recover registration' });
+  }
+});
+
+// =====================================
+// SET REGISTRATION TO PENDING
+// =====================================
+app.post('/api/set-pending-registration/:id', verifyAdminToken, async (req, res) => {
+  try {
+    const id = req.params.id;
+    await pool.query(
+      `UPDATE registrations SET payment_status = 'pending' WHERE registration_id = $1`,
+      [id]
+    );
+    res.json({ success: true, message: 'Registration moved back to pending' });
+  } catch (error) {
+    console.error('Set Pending Registration Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to set registration to pending' });
   }
 });
 

@@ -301,6 +301,15 @@ app.post(
       }
 
       if (event_id) {
+        // Fetch existing draft to preserve any previously saved phone number or details
+        const existingDraft = await pool.query(
+          `SELECT registration_id, phone_number, full_name FROM registrations WHERE email = $1 AND event_id = $2 AND payment_status = 'draft'`,
+          [cleanEmail, event_id]
+        );
+        const existingPhone = existingDraft.rows[0]?.phone_number || '';
+        const finalPhone = phone_number || existingPhone;
+        const finalName = (full_name && full_name !== 'Incomplete Registration' && full_name !== 'Registrant') ? full_name : (existingDraft.rows[0]?.full_name || full_name);
+
         // Delete older draft for this email & event to avoid duplicate drafts
         await pool.query(
           `DELETE FROM registrations WHERE email = $1 AND event_id = $2 AND payment_status = 'draft'`,
@@ -320,7 +329,7 @@ app.post(
           VALUES ($1, $2, $3, $4, $5, $6, 0, $7, $8, 'draft', $9, $10, $11, $12, $13, $14, $15)
           `,
           [
-            full_name, cleanEmail, phone_number, tickets[0] || 'solo', total_amount,
+            finalName, cleanEmail, finalPhone, tickets[0] || 'solo', total_amount,
             Number(req.body.allowed_entries) || (tickets.length > 0 ? tickets.length : 1),
             qr_token, payment_proof, event_id, emergency_contact_name, emergency_contact,
             blood_group, gender, club_affiliation, utr
@@ -352,6 +361,70 @@ app.post(
     }
   }
 );
+
+// =====================================
+// SAVE DRAFT (REAL-TIME AUTO-SAVE WITH PHONE)
+// =====================================
+
+app.post('/api/save-draft', async (req, res) => {
+  try {
+    const email = (req.body.email || '').toLowerCase().trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, message: 'Valid email required' });
+    }
+    const event_id = req.body.event_id;
+    if (!event_id) {
+      return res.status(400).json({ success: false, message: 'Event ID required' });
+    }
+
+    // Don't modify if user has already completed registration
+    const existingCompleted = await pool.query(
+      "SELECT registration_id FROM registrations WHERE email = $1 AND event_id = $2 AND payment_status != 'draft'",
+      [email, event_id]
+    );
+    if (existingCompleted.rows.length > 0) {
+      return res.json({ success: true, message: 'Registration already exists' });
+    }
+
+    const full_name = req.body.full_name?.trim() || 'Incomplete Registration';
+    const phone_number = req.body.phone_number?.trim() || '';
+    const ticket_type = req.body.ticket_type || 'Dandiya Pass';
+    const total_amount = req.body.total_amount || 0;
+    const allowed_entries = Number(req.body.allowed_entries) || 1;
+    const club_affiliation = req.body.club_affiliation || '';
+
+    const existingDraft = await pool.query(
+      "SELECT registration_id, phone_number, full_name FROM registrations WHERE email = $1 AND event_id = $2 AND payment_status = 'draft'",
+      [email, event_id]
+    );
+
+    if (existingDraft.rows.length > 0) {
+      const currentPhone = existingDraft.rows[0].phone_number || '';
+      const finalPhone = phone_number || currentPhone;
+      const finalName = (full_name && full_name !== 'Incomplete Registration' && full_name !== 'Registrant') ? full_name : (existingDraft.rows[0].full_name || full_name);
+
+      await pool.query(
+        `UPDATE registrations 
+         SET phone_number = $1, full_name = $2, total_amount = $3, allowed_entries = $4, club_affiliation = $5, ticket_type = $6
+         WHERE registration_id = $7`,
+        [finalPhone, finalName, total_amount, allowed_entries, club_affiliation, ticket_type, existingDraft.rows[0].registration_id]
+      );
+    } else {
+      const qr_token = uuidv4();
+      await pool.query(
+        `INSERT INTO registrations 
+         (full_name, email, phone_number, ticket_type, total_amount, allowed_entries, used_entries, qr_token, payment_status, event_id, club_affiliation)
+         VALUES ($1, $2, $3, $4, $5, $6, 0, $7, 'draft', $8, $9)`,
+        [full_name, email, phone_number, ticket_type, total_amount, allowed_entries, qr_token, event_id, club_affiliation]
+      );
+    }
+
+    res.json({ success: true, message: 'Draft saved successfully' });
+  } catch (err) {
+    console.error('SAVE DRAFT ERROR:', err);
+    res.status(500).json({ success: false, message: 'Failed to save draft' });
+  }
+});
 
 // =====================================
 // VERIFY OTP (INLINE)

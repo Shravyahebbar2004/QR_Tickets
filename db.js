@@ -1,4 +1,8 @@
 const { Pool } = require('pg');
+const dns = require('dns');
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 require('dotenv').config();
 
@@ -9,23 +13,19 @@ require('dotenv').config();
 const isProduction =
   process.env.NODE_ENV === 'production';
 
+// Strip SCRAM channel_binding if present to prevent node-pg handshake timeout
+const connectionString = (process.env.DATABASE_URL || '').replace('&channel_binding=require', '');
+
 // =====================================
 // CREATE POSTGRES POOL
 // =====================================
 
 const pool = new Pool({
-
-  connectionString:
-    process.env.DATABASE_URL,
-
-  ssl: isProduction
-
+  connectionString: connectionString,
+  ssl: (isProduction || (connectionString && !connectionString.includes('localhost')))
     ? {
-
         rejectUnauthorized: false
-
       }
-
     : false,
 
   // =====================================

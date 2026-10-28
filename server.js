@@ -173,7 +173,7 @@ app.get('/api/event/:id', async (req, res) => {
     }
 
     const regCount = await pool.query(
-      "SELECT COALESCE(SUM(CASE WHEN allowed_entries > 0 THEN allowed_entries ELSE 1 END), 0) as count FROM registrations WHERE event_id = $1 AND payment_status != 'draft'",
+      "SELECT COALESCE(SUM(CASE WHEN allowed_entries > 0 THEN allowed_entries ELSE 1 END), 0) as count FROM registrations WHERE event_id = $1 AND payment_status NOT IN ('draft', 'rejected')",
       [id]
     );
     const eventData = {
@@ -379,7 +379,7 @@ app.post('/api/save-draft', async (req, res) => {
 
     // Don't modify if user has already completed registration
     const existingCompleted = await pool.query(
-      "SELECT registration_id FROM registrations WHERE email = $1 AND event_id = $2 AND payment_status != 'draft'",
+      "SELECT registration_id FROM registrations WHERE email = $1 AND event_id = $2 AND payment_status NOT IN ('draft', 'rejected')",
       [email, event_id]
     );
     if (existingCompleted.rows.length > 0) {
@@ -562,9 +562,9 @@ app.post(
       // Delete the OTP once verified
       await pool.query('DELETE FROM email_otps WHERE email = $1', [cleanEmail]);
 
-      // RESTORE DUPLICATE EMAIL CHECK
+      // RESTORE DUPLICATE EMAIL CHECK (Exclude rejected passes so rejected users can re-register)
       const existing = await pool.query(
-        `SELECT * FROM registrations WHERE email = $1 AND event_id = $2 AND payment_status != 'draft'`,
+        `SELECT * FROM registrations WHERE email = $1 AND event_id = $2 AND payment_status NOT IN ('draft', 'rejected')`,
         [cleanEmail, event_id]
       );
 
@@ -577,7 +577,7 @@ app.post(
 
       // CHECK TOTAL CAPACITY LIMIT (MAX 300 REGISTRATIONS)
       const is_admin_mode = req.body.is_admin_mode === 'true' || req.body.is_admin_mode === true;
-      const countRes = await pool.query("SELECT COUNT(*) FROM registrations WHERE event_id = $1 AND payment_status != 'draft'", [event_id]);
+      const countRes = await pool.query("SELECT COUNT(*) FROM registrations WHERE event_id = $1 AND payment_status NOT IN ('draft', 'rejected')", [event_id]);
       const totalRegistrations = Number(countRes.rows[0].count) || 0;
       if (!is_admin_mode && totalRegistrations >= 300) {
         return res.status(400).json({

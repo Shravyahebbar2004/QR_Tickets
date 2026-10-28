@@ -21,7 +21,7 @@ async function setMegaFlashSale() {
       price: "339",
       max_tickets: 5,
       enabled: true,
-      start_time: "2026-10-28T11:35:00+05:30",
+      start_time: "2026-10-28T11:59:00+05:30",
       end_time: "2026-10-28T17:00:00+05:30"
     };
 

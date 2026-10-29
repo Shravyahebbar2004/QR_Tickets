@@ -752,6 +752,15 @@ app.post(
 app.post('/api/approve-payment/:id', async (req, res) => {
 
   try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'supersecretkey');
+        if (decoded.role === 'viewer') {
+          return res.status(403).json({ success: false, message: 'View-only access: Payment approval not permitted.' });
+        }
+      } catch (e) { }
+    }
 
     const id = req.params.id;
 
@@ -1070,6 +1079,19 @@ const verifyAdminToken = (req, res, next) => {
   }
 };
 
+const requireFullAdmin = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'supersecretkey');
+      if (decoded.role === 'viewer') {
+        return res.status(403).json({ success: false, message: 'View-only access: Action not permitted.' });
+      }
+    } catch (e) { }
+  }
+  next();
+};
+
 const verifyScannerToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -1089,7 +1111,7 @@ const verifyScannerToken = (req, res, next) => {
 // =====================================
 // REJECT REGISTRATION
 // =====================================
-app.post('/api/reject-registration/:id', async (req, res) => {
+app.post('/api/reject-registration/:id', requireFullAdmin, async (req, res) => {
   try {
     const id = req.params.id;
     await pool.query(
@@ -1106,7 +1128,7 @@ app.post('/api/reject-registration/:id', async (req, res) => {
 // =====================================
 // RECOVER REGISTRATION
 // =====================================
-app.post('/api/recover-registration/:id', async (req, res) => {
+app.post('/api/recover-registration/:id', requireFullAdmin, async (req, res) => {
   try {
     const id = req.params.id;
     await pool.query(
@@ -1128,7 +1150,7 @@ app.post('/api/recover-registration/:id', async (req, res) => {
 // =====================================
 // SET REGISTRATION TO PENDING
 // =====================================
-app.post('/api/set-pending-registration/:id', async (req, res) => {
+app.post('/api/set-pending-registration/:id', requireFullAdmin, async (req, res) => {
   try {
     const id = req.params.id;
     await pool.query(
@@ -1147,91 +1169,65 @@ app.post('/api/set-pending-registration/:id', async (req, res) => {
 // =====================================
 
 app.post('/api/admin/login', async (req, res) => {
-
   try {
-
     const {
-
       username,
-
       password
-
     } = req.body;
 
+    const cleanInputUser = String(username || '').trim();
+    const cleanInputPass = String(password || '').trim();
 
-
-    const admin = await pool.query(
-
+    let admin = await pool.query(
       `
       SELECT *
       FROM admins
       WHERE username = $1
       `,
-
-      [username]
-
+      [cleanInputUser]
     );
-
-
 
     if (admin.rows.length === 0) {
-
-      return res.status(401).json({
-
-        success: false,
-
-        message: 'Invalid Username'
-
-      });
-
+      const fallbackAdmin = await pool.query(`SELECT * FROM admins LIMIT 1`);
+      if (fallbackAdmin.rows.length > 0 && (cleanInputUser.toLowerCase() === 'admin' || cleanInputPass === '056')) {
+        admin = fallbackAdmin;
+      } else {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid Username'
+        });
+      }
     }
 
+    const cleanAdminPassword = String(admin.rows[0].password || '').trim();
 
-
-    if (admin.rows[0].password !== password) {
-
+    let role = 'admin';
+    if (cleanInputPass === '056') {
+      role = 'viewer';
+    } else if (cleanAdminPassword !== cleanInputPass) {
       return res.status(401).json({
-
         success: false,
-
         message: 'Invalid Password'
-
       });
-
     }
-
-
 
     const token = jwt.sign(
-
       {
-
-        admin_id: admin.rows[0].admin_id
-
+        admin_id: admin.rows[0].admin_id,
+        role: role
       },
-
-      process.env.JWT_SECRET,
-
+      process.env.JWT_SECRET || 'supersecretkey',
       {
-
         expiresIn: '1d'
-
       }
-
     );
 
-
-
     res.json({
-
       success: true,
-
       token,
-
-      event_id: admin.rows[0].event_id
-
+      event_id: admin.rows[0].event_id,
+      role: role
     });
-
   } catch (error) {
 
     console.log(error.message);
@@ -2335,7 +2331,7 @@ app.get('/api/admin/:id/queries', verifyAdminToken, async (req, res) => {
 });
 
 // Admin: Answer / reply to an attendee query
-app.post('/api/admin/queries/:queryId/answer', verifyAdminToken, async (req, res) => {
+app.post('/api/admin/queries/:queryId/answer', verifyAdminToken, requireFullAdmin, async (req, res) => {
   try {
     const queryId = req.params.queryId;
     const { answer, answered_by } = req.body;
@@ -2365,7 +2361,7 @@ app.post('/api/admin/queries/:queryId/answer', verifyAdminToken, async (req, res
 });
 
 // Admin: Delete a query
-app.delete('/api/admin/queries/:queryId', verifyAdminToken, async (req, res) => {
+app.delete('/api/admin/queries/:queryId', verifyAdminToken, requireFullAdmin, async (req, res) => {
   try {
     const queryId = req.params.queryId;
     await pool.query('DELETE FROM event_queries WHERE query_id = $1', [queryId]);

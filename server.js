@@ -772,7 +772,8 @@ app.post('/api/approve-payment/:id', async (req, res) => {
   e.organizer_name,
   e.category,
   e.custom_pricing,
-  e.whatsapp_link
+  e.whatsapp_link,
+  e.venue_map_url
 
   FROM registrations r
 
@@ -952,8 +953,13 @@ app.post('/api/approve-payment/:id', async (req, res) => {
       <p style="margin: 8px 0; font-size: 15px;"><strong style="color: #fde68a;">Ticket Type:</strong> <span style="color: #ffffff;">${attendee.ticket_type} (${attendee.allowed_entries} members)</span></p>
       ${generated_bib_number ? `<p style="margin: 8px 0; font-size: 15px;"><strong style="color: #fde68a;">Bib Number:</strong> <span style="color: #ffffff;">#${generated_bib_number}</span></p>` : ''}
       ${wave_info}
-      <p style="margin: 8px 0; font-size: 15px;"><strong style="color: #fde68a;">Venue:</strong> <span style="color: #ffffff;">${attendee.venue}</span></p>
+      <p style="margin: 8px 0; font-size: 15px;"><strong style="color: #fde68a;">Venue:</strong> <span style="color: #ffffff;">${attendee.venue}</span> (<a href="${attendee.venue_map_url || 'https://share.google/SmVDY2TbdA9RRCQwO'}" target="_blank" style="color: #fde68a; text-decoration: underline; font-weight: bold;">📍 View on Google Maps ↗</a>)</p>
       <p style="margin: 8px 0; font-size: 15px;"><strong style="color: #fde68a;">Date & Time:</strong> <span style="color: #ffffff;">${new Date(attendee.event_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' })} at ${new Date(attendee.event_date).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true })} IST</span></p>
+      <div style="margin: 12px 0 4px 0;">
+        <a href="${attendee.venue_map_url || 'https://share.google/SmVDY2TbdA9RRCQwO'}" target="_blank" style="display: inline-block; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.5); color: #fde68a; padding: 9px 18px; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 13px;">
+          📍 Open Venue Location on Google Maps ↗
+        </a>
+      </div>
     </div>
 
     <div style="background: #ffffff; padding: 16px; border-radius: 20px; display: inline-block; margin-top: 10px; border: 3px solid #f59e0b; box-shadow: 0 0 20px rgba(245,158,11,0.3);">
@@ -1915,7 +1921,8 @@ app.post('/api/my-ticket', async (req, res) => {
         e.organizer_name,
         e.category,
         e.custom_pricing,
-        e.whatsapp_link
+        e.whatsapp_link,
+        e.venue_map_url
       FROM registrations r
       JOIN events e ON r.event_id = e.event_id
       WHERE 1=1

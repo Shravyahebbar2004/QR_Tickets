@@ -377,13 +377,21 @@ app.post('/api/save-draft', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Event ID required' });
     }
 
-    // Don't modify if user has already completed registration
-    const existingCompleted = await pool.query(
-      "SELECT registration_id FROM registrations WHERE email = $1 AND event_id = $2 AND payment_status NOT IN ('draft', 'rejected')",
-      [email, event_id]
-    );
-    if (existingCompleted.rows.length > 0) {
-      return res.json({ success: true, message: 'Registration already exists' });
+    // Don't modify if user has already completed registration (unless whitelisted for additional registrations)
+    const ALLOWED_RE_REGISTER_EMAILS = [
+      'magalashravanthi@gmail.com',
+      'meganar98@gmail.com'
+    ];
+    const isAllowedReRegister = ALLOWED_RE_REGISTER_EMAILS.includes(email);
+
+    if (!isAllowedReRegister) {
+      const existingCompleted = await pool.query(
+        "SELECT registration_id FROM registrations WHERE email = $1 AND event_id = $2 AND payment_status NOT IN ('draft', 'rejected')",
+        [email, event_id]
+      );
+      if (existingCompleted.rows.length > 0) {
+        return res.json({ success: true, message: 'Registration already exists' });
+      }
     }
 
     const full_name = req.body.full_name?.trim() || 'Incomplete Registration';
@@ -562,17 +570,25 @@ app.post(
       // Delete the OTP once verified
       await pool.query('DELETE FROM email_otps WHERE email = $1', [cleanEmail]);
 
-      // RESTORE DUPLICATE EMAIL CHECK (Exclude rejected passes so rejected users can re-register)
-      const existing = await pool.query(
-        `SELECT * FROM registrations WHERE email = $1 AND event_id = $2 AND payment_status NOT IN ('draft', 'rejected')`,
-        [cleanEmail, event_id]
-      );
+      // RESTORE DUPLICATE EMAIL CHECK (Exclude rejected passes, and allow whitelisted emails for additional registrations)
+      const ALLOWED_RE_REGISTER_EMAILS = [
+        'magalashravanthi@gmail.com',
+        'meganar98@gmail.com'
+      ];
+      const isAllowedReRegister = ALLOWED_RE_REGISTER_EMAILS.includes(cleanEmail);
 
-      if (existing.rows.length > 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'This email has already registered for this event!'
-        });
+      if (!isAllowedReRegister) {
+        const existing = await pool.query(
+          `SELECT * FROM registrations WHERE email = $1 AND event_id = $2 AND payment_status NOT IN ('draft', 'rejected')`,
+          [cleanEmail, event_id]
+        );
+
+        if (existing.rows.length > 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'This email has already registered for this event!'
+          });
+        }
       }
 
       // CHECK TOTAL CAPACITY LIMIT (MAX 300 REGISTRATIONS)

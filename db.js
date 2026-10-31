@@ -1,8 +1,14 @@
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
 const dns = require('dns');
 if (dns.setDefaultResultOrder) {
   dns.setDefaultResultOrder('ipv4first');
 }
+
+// Force node-pg to parse TIMESTAMP without time zone (OID 1114) deterministically as UTC across all environments
+types.setTypeParser(1114, (str) => {
+  if (!str) return null;
+  return new Date(str.replace(' ', 'T') + 'Z');
+});
 
 require('dotenv').config();
 

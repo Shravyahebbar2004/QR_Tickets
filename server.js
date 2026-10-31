@@ -661,6 +661,10 @@ app.post(
         else if (ticket_type === 'group') current_allowed = 4; // GROUP IS 4 NOW!
         else if (ticket_type === 'bulk') current_allowed = bulk_entries;
         else if (req.body.allowed_entries && tickets.length === 1) current_allowed = Number(req.body.allowed_entries);
+        else if (typeof ticket_type === 'string' && /\((\d+)\s*entr(y|ies)\)/i.test(ticket_type)) {
+          const match = ticket_type.match(/\((\d+)\s*entr(y|ies)\)/i);
+          current_allowed = Number(match[1]) || 1;
+        }
         
         const tshirt_size = req.body.tshirt_size || '';
         // Grab participant specific details if they exist (Marathon)

@@ -3,6 +3,26 @@ const dns = require('dns');
 if (dns.setDefaultResultOrder) {
   dns.setDefaultResultOrder('ipv4first');
 }
+const origLookup = dns.lookup;
+dns.lookup = (hostname, options, callback) => {
+  if (typeof options === 'function') {
+    callback = options;
+    options = {};
+  }
+  origLookup(hostname, options, (err, address, family) => {
+    if (!err) return callback(null, address, family);
+    const resolver = new dns.Resolver();
+    resolver.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);
+    resolver.resolve4(hostname, (rErr, addresses) => {
+      if (rErr || !addresses || addresses.length === 0) return callback(err);
+      if (options && options.all) {
+        callback(null, addresses.map(a => ({ address: a, family: 4 })));
+      } else {
+        callback(null, addresses[0], 4);
+      }
+    });
+  });
+};
 
 // Force node-pg to parse TIMESTAMP without time zone (OID 1114) deterministically as UTC across all environments
 types.setTypeParser(1114, (str) => {
